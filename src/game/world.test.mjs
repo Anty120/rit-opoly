@@ -4,7 +4,7 @@ import { constrainPlayer, islandRadius, islandGeometry, BOARD_HALF, PLAYER_RADIU
 import { DEFAULT_SETTINGS, sanitizeSettings } from '../settings/gameSettings.ts'
 import { createGrassLayout } from './grass/grassLayout.ts'
 import { createGrassGeometry } from './grass/grassGeometry.ts'
-import { grassDensityAtDistance, grassDrawCount } from './grass/grassLod.ts'
+import { grassDensityAtDistance, grassDistanceToPatch, grassDrawCount } from './grass/grassLod.ts'
 
 test('the player stays inside the island in every direction', () => {
   for (let i = 0; i < 720; i++) {
@@ -56,6 +56,7 @@ test('settings are validated and faster defaults are restored safely', () => {
   assert.equal(settings.grassColor, DEFAULT_SETTINGS.grassColor)
   assert.equal(settings.grassShadows, true)
   assert.equal(settings.adaptiveQuality, false)
+  assert.equal(settings.grassSwaySpeed, DEFAULT_SETTINGS.grassSwaySpeed)
 })
 
 test('grass detail decreases smoothly with distance and draw counts stay bounded', () => {
@@ -68,11 +69,27 @@ test('grass detail decreases smoothly with distance and draw counts stay bounded
   }
   assert.ok(grassDrawCount(9000, 40, .85) < grassDrawCount(9000, 10, .85) / 4)
   assert.equal(grassDrawCount(9000, 10, .25), 2250)
-  const detailed = createGrassGeometry(3), distant = createGrassGeometry(1)
-  assert.equal(detailed.attributes.position.count, 7)
-  assert.equal(distant.attributes.position.count, 3)
-  assert.equal(distant.index.count, 3)
-  detailed.dispose(); distant.dispose()
+  const geometry = createGrassGeometry(2)
+  assert.equal(geometry.attributes.position.count, 5)
+  assert.equal(geometry.index.count, 9)
+  geometry.dispose()
+})
+
+test('patch draw limits keep every blade needed by continuous per-blade density', () => {
+  const capacity = 9000, density = .85
+  for (const cameraX of [-30, -4, 0, 4, 15, 30]) {
+    for (const patchX of [-8, 0, 8]) {
+      const nearest = grassDistanceToPatch(cameraX, 17, patchX, 0)
+      const limit = Math.min(capacity, grassDrawCount(capacity, nearest, density) + Math.ceil(capacity * .02))
+      for (let rootX = patchX - 4; rootX <= patchX + 4; rootX += .5) {
+        for (let rootZ = -4; rootZ <= 4; rootZ += .5) {
+          const distance = Math.hypot(cameraX - rootX, 17 - rootZ)
+          const required = Math.min(capacity, Math.floor(capacity * (density * grassDensityAtDistance(distance) + .02)))
+          assert.ok(limit >= required)
+        }
+      }
+    }
+  }
 })
 
 test('grass patches are deterministic and exclude the board, rocks, and island edge', () => {

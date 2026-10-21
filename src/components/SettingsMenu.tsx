@@ -31,7 +31,8 @@ export function SettingsMenu({ settings, onChange, onRestore, stats, open, onOpe
       <fieldset><legend>Grass</legend>
         <SettingSlider setting="grassDensity" label="Density" settings={settings} onChange={onChange} percent />
         <SettingSlider setting="grassHeight" label="Height" settings={settings} onChange={onChange} percent />
-        <SettingSlider setting="grassWind" label="Wind strength" settings={settings} onChange={onChange} percent />
+        <SettingSlider setting="grassWind" label="Sway amount" settings={settings} onChange={onChange} percent />
+        <SettingSlider setting="grassSwaySpeed" label="Sway speed" settings={settings} onChange={onChange} percent />
         <label className="setting-color">Grass color<input type="color" value={settings.grassColor} onChange={event => onChange('grassColor', event.target.value)} /></label>
         <SettingToggle label="Grass receives shadows" checked={settings.grassShadows} onChange={value => onChange('grassShadows', value)} />
       </fieldset>

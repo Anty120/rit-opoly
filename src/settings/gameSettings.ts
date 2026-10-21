@@ -5,6 +5,7 @@ export interface GameSettings {
   grassDensity: number
   grassHeight: number
   grassWind: number
+  grassSwaySpeed: number
   grassColor: string
   grassShadows: boolean
   renderScale: number
@@ -13,7 +14,7 @@ export interface GameSettings {
 
 export const DEFAULT_SETTINGS: GameSettings = {
   walkSpeed: 6, runSpeed: 10, jumpStrength: 5.5,
-  grassDensity: .85, grassHeight: 1, grassWind: 1,
+  grassDensity: .85, grassHeight: 1, grassWind: 1, grassSwaySpeed: 1,
   grassColor: '#a5dcc5', grassShadows: true,
   renderScale: 1, adaptiveQuality: true,
 }
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
 export const SETTING_RANGES = {
   walkSpeed: [2, 12, .5], runSpeed: [4, 18, .5], jumpStrength: [3, 10, .5],
   grassDensity: [.25, 1, .05], grassHeight: [.4, 1.5, .05], grassWind: [0, 2, .1],
+  grassSwaySpeed: [.25, 2.5, .05],
   renderScale: [.65, 1.5, .05],
 } as const
 
