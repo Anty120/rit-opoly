@@ -1,0 +1,23 @@
+.settings-menu { position: absolute; top: 130px; right: 44px; z-index: 3; width: 300px; display: flex; flex-direction: column; align-items: flex-end; }
+.settings-button { border: 1px solid #ffffff88; border-radius: 22px; background: #fff9edcc; padding: 9px 15px; font-size: 11px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+.settings-button > span { font-size: 17px; line-height: 1; }
+.settings-button:hover, .restore-button:hover { background: #fff9ed; }
+.settings-panel { width: 100%; margin-top: 10px; padding: 20px; background: #f9f8eced; border: 1px solid #ffffffbb; border-radius: 16px; box-shadow: 0 15px 50px #294a3820; backdrop-filter: blur(14px); max-height: calc(100svh - 200px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.settings-panel h2 { font-size: 16px; font-weight: 600; letter-spacing: -.4px; margin: 0 0 6px; }
+.settings-panel header p { font-size: 10px; opacity: .65; margin: 0; }
+.settings-panel fieldset { border: 0; border-top: 1px solid #354c481a; padding: 15px 0 8px; margin: 18px 0 0; min-width: 0; }
+.settings-panel legend { padding-right: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; }
+.setting-slider { display: block; font-size: 11px; margin-bottom: 13px; }
+.setting-slider > span { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+.setting-slider output { font-variant-numeric: tabular-nums; color: #668774; }
+.setting-slider input { display: block; width: 100%; margin: 0; accent-color: #668c75; cursor: pointer; height: 15px; }
+.setting-toggle, .setting-color { display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin: 12px 0; gap: 12px; }
+.setting-toggle input { accent-color: #668c75; width: 15px; height: 15px; cursor: pointer; }
+.setting-color input { width: 38px; height: 25px; padding: 2px; border: 1px solid #354c4833; background: transparent; border-radius: 6px; cursor: pointer; }
+.settings-hint { font-size: 10px; opacity: .6; line-height: 1.5; margin: 12px 0 0; }
+.restore-button { width: 100%; border: 1px solid #354c4830; border-radius: 9px; padding: 10px; font-size: 11px; background: transparent; cursor: pointer; margin-top: 12px; }
+.performance-readout { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 0; padding: 12px; background: #668c7512; border-radius: 10px; }
+.performance-readout strong { font-size: 23px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.performance-readout small { font-size: 9px; font-weight: 500; opacity: .6; }
+.performance-readout > span { font-size: 9px; text-align: right; line-height: 1.6; opacity: .7; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) { .settings-menu { top: 108px; right: 22px; width: min(300px, calc(100vw - 44px)); } .settings-panel { max-height: calc(100svh - 170px); padding: 16px; } }
