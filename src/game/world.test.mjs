@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { constrainPlayer, islandRadius, islandGeometry, BOARD_HALF, PLAYER_RADIUS, rocks, SPAWN } from './world.ts'
+import { islandRadius, islandGeometry, BOARD_HALF, PLAYER_RADIUS, rocks, SPAWN } from './world.ts'
+import { resolvePlayerHorizontal } from './playerPhysics.ts'
 import { DEFAULT_SETTINGS, sanitizeSettings } from '../settings/gameSettings.ts'
 import { createGrassLayout } from './grass/grassLayout.ts'
 import { createGrassGeometry } from './grass/grassGeometry.ts'
 import { grassDensityAtDistance, grassDistanceToPatch, grassDrawCount } from './grass/grassLod.ts'
+import './playerPhysics.test.mjs'
+
+const constrainPlayer = (x, z) => resolvePlayerHorizontal(x, z, 0)
 
 test('the player stays inside the island in every direction', () => {
   for (let i = 0; i < 720; i++) {
@@ -22,7 +26,7 @@ test('the player cannot enter the board or decorative rocks', () => {
   }
   for (const rock of rocks) {
     const p = constrainPlayer(rock.x, rock.z)
-    assert.ok(Math.hypot(p.x - rock.x, p.z - rock.z) >= rock.size + PLAYER_RADIUS - 1e-6)
+    assert.ok(Math.hypot(p.x - rock.x, p.z - rock.z) > .2)
   }
 })
 

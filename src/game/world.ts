@@ -1,7 +1,10 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 
-export const BOARD_HALF = 4.4
+// export const BOARD_HALF = 4.4
+export const BOARD_HALF = 8
+export const BOARD_HEIGHT = .602
 export const PLAYER_RADIUS = 0.4
+export const PLAYER_HEIGHT = 1.67
 export const SPAWN = [0, 0, 8] as const
 export const rocks = [
   { x: -10, z: -6, size: 1.6 }, { x: -12, z: -4.8, size: 0.9 },
@@ -55,23 +58,3 @@ export function islandGeometry() {
   return geometry
 }
 
-export function constrainPlayer(x: number, z: number) {
-  const half = BOARD_HALF + PLAYER_RADIUS
-  if (Math.abs(x) < half && Math.abs(z) < half) {
-    if (half - Math.abs(x) < half - Math.abs(z)) x = (Math.sign(x) || 1) * half
-    else z = (Math.sign(z) || 1) * half
-  }
-  for (const rock of rocks) {
-    const dx = x - rock.x, dz = z - rock.z
-    const distance = Math.hypot(dx, dz)
-    const radius = rock.size + PLAYER_RADIUS
-    if (distance < radius) {
-      x = rock.x + (distance ? dx / distance : 1) * radius
-      z = rock.z + (distance ? dz / distance : 0) * radius
-    }
-  }
-  const distance = Math.hypot(x, z)
-  const limit = islandRadius(Math.atan2(z, x)) - 1.1
-  if (distance > limit) { x *= limit / distance; z *= limit / distance }
-  return { x, z }
-}

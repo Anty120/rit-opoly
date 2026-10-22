@@ -13,7 +13,7 @@ export interface GameSettings {
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {
-  walkSpeed: 6, runSpeed: 10, jumpStrength: 5.5,
+  walkSpeed: 6, runSpeed: 10, jumpStrength: 8.5,
   grassDensity: .85, grassHeight: 1, grassWind: 1, grassSwaySpeed: 1,
   grassColor: '#a5dcc5', grassShadows: true,
   renderScale: 1, adaptiveQuality: true,
@@ -46,6 +46,16 @@ export function sanitizeSettings(value: unknown): GameSettings {
   }
   settings.runSpeed = Math.max(settings.walkSpeed, settings.runSpeed)
   return settings
+}
+
+export const SETTINGS_VERSION = 2
+
+export function restoreSavedSettings(value: unknown): GameSettings {
+  // Upgrade the old default jump without resetting custom movement/grass preferences.
+  if (value && typeof value === 'object' && !('settingsVersion' in value) && 'jumpStrength' in value && value.jumpStrength === 5.5) {
+    return sanitizeSettings({ ...value, jumpStrength: DEFAULT_SETTINGS.jumpStrength })
+  }
+  return sanitizeSettings(value)
 }
 
 export interface RuntimeStats { fps: number; frameMs: number; drawCalls: number; triangles: number; dpr: number }

@@ -18,7 +18,8 @@ export function PerformanceMonitor({ settings, stats }: { settings: GameSettings
     const frameMs = current.seconds * 1000 / current.frames
     Object.assign(stats.current, { fps: 1000 / frameMs, frameMs, drawCalls: gl.info.render.calls, triangles: gl.info.render.triangles, dpr: viewport.dpr })
     if (settings.adaptiveQuality && current.settle > 3) {
-      const floor = Math.min(.65, settings.renderScale)
+      // Preserve fine board lettering; lower scales remain available by explicit choice.
+      const floor = Math.min(.85, settings.renderScale)
       if (frameMs > 24 && viewport.dpr > floor) {
         setDpr(Math.max(floor, Math.round((viewport.dpr - .1) * 100) / 100)); current.goodWindows = 0
       } else if (frameMs < 18) {
