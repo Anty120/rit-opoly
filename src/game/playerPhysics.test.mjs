@@ -28,7 +28,7 @@ test('the player can jump again from the board and falls when walking off', () =
   assert.ok(body.y > BOARD_HEIGHT + 1)
   settle(body)
   assert.equal(body.y, BOARD_HEIGHT)
-  for (let i = 0; i < 65; i++) step(body, .1, 0)
+  for (let i = 0; i < Math.ceil((BOARD_HALF + PLAYER_RADIUS + 2) / .1); i++) step(body, .1, 0)
   assert.ok(body.x > BOARD_HALF + PLAYER_RADIUS)
   assert.equal(body.y, 0)
   assert.equal(body.grounded, true)

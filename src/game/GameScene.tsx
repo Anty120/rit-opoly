@@ -12,9 +12,12 @@ import { Player } from './Player'
 import { Rocks } from './Rocks'
 import type { PlayerInput } from './types'
 import { SPAWN } from './world'
+import type { MultiplayerSession } from '../multiplayer/types'
+import { RemotePlayers } from '../multiplayer/RemotePlayers'
 
-export function GameScene({ reset, input, settings, onReset, paused }: {
+export function GameScene({ reset, input, settings, onReset, paused, multiplayer }: {
   reset: number; input: PlayerInput; settings: GameSettings; onReset: () => void; paused: boolean
+  multiplayer: MultiplayerSession
 }) {
   const player = useRef(new Vector3(...SPAWN))
   const orbit = useRef({ yaw: 0, pitch: .57, distance: 15 })
@@ -26,7 +29,8 @@ export function GameScene({ reset, input, settings, onReset, paused }: {
     <Board />
     <Rocks />
     <Flowers />
-    <Player position={player} input={input} orbit={orbit} reset={reset} settings={settings} paused={paused} />
-    <FollowCamera position={player} orbit={orbit} reset={reset} />
+    <Player position={player} input={input} orbit={orbit} reset={reset} settings={settings} paused={paused} multiplayer={multiplayer} />
+    <RemotePlayers multiplayer={multiplayer} />
+    <FollowCamera position={player} orbit={orbit} reset={reset} spawn={multiplayer.session?.spawn} />
   </>
 }

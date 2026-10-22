@@ -4,14 +4,23 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "vite --host 0.0.0.0",
+    "dev:server": "node --experimental-strip-types server/index.ts",
+    "start:server": "node --experimental-strip-types server/index.ts",
     "build": "tsc -b && vite build",
     "test": "node --experimental-strip-types src/game/world.test.mjs",
+    "test:multiplayer": "node --experimental-strip-types server/multiplayer.test.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@colyseus/core": "^0.17.55",
+    "@colyseus/schema": "^4.0.31",
+    "@colyseus/sdk": "^0.17.43",
+    "@colyseus/ws-transport": "^0.17.13",
     "@react-three/fiber": "^9.8.2",
+    "express": "^5.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "three": "^0.186.1"

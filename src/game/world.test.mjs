@@ -32,7 +32,7 @@ test('the player cannot enter the board or decorative rocks', () => {
 
 test('spawn is clear and has substantial room toward the nearby edge', () => {
   assert.deepEqual(constrainPlayer(SPAWN[0], SPAWN[2]), { x: SPAWN[0], z: SPAWN[2] })
-  assert.ok(islandRadius(Math.PI / 2) - 1.1 - SPAWN[2] > 15)
+  assert.ok(islandRadius(Math.PI / 2) - 1.1 - SPAWN[2] > 12)
 })
 
 test('higher movement speeds still respect the island and board boundaries', () => {

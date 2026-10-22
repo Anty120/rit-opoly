@@ -5,7 +5,7 @@ export const BOARD_HALF = 8
 export const BOARD_HEIGHT = .602
 export const PLAYER_RADIUS = 0.4
 export const PLAYER_HEIGHT = 1.67
-export const SPAWN = [0, 0, 8] as const
+export const SPAWN = [0, 0, Math.max(8, BOARD_HALF + 1)] as const
 export const rocks = [
   { x: -10, z: -6, size: 1.6 }, { x: -12, z: -4.8, size: 0.9 },
   { x: 10, z: 2, size: 1.5 }, { x: 11.7, z: 3.2, size: 0.7 },

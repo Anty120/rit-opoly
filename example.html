@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stylized World - High-Performance Edition</title>
+<style>
+html,body{height:100%;margin:0;background:#a0d8ef;font-family:Inter,Arial,Helvetica,sans-serif}
+#gameContainer{position:relative;width:100vw;height:100vh;overflow:hidden}
+#minimap{position:absolute;right:12px;top:12px;width:200px;height:200px;border-radius:6px;background:rgba(0,0,0,0.45);z-index:20;border: 1px solid rgba(255,255,255,0.2);}
+#ui{position:absolute;left:12px;top:12px;background:rgba(0,0,0,0.6);color:#fff;padding:10px;border-radius:8px;font-size:13px;z-index:20}
+#controls{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,0.6);color:#fff;padding:10px;border-radius:8px;font-size:12px;z-index:20}
+canvas#three-canvas{display:block}
+</style>
+</head>
+<body>
+<div id="gameContainer"></div>
+<canvas id="minimap" width="200" height="200"></canvas>
+<div id="ui">
+<div>Position: <span id="pos">0,0</span></div>
+<div>Biome: <span id="biome">Grassland</span></div>
+<div>Seed: <span id="seed">1337</span></div>
+<div>FPS: <span id="fps">--</span></div>
+</div>
+<div id="controls">
+<div><strong>Controls</strong></div>
+<div>WASD / Arrows — Move</div>
+<div>Shift — Run</div>
+<div>Mouse Drag — Rotate camera</div>
+<div>Mouse Wheel — Zoom</div>
+</div>
+<script type="importmap">
+{
+"imports": {
+"three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+}
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+
+// ----- CONFIG -----
+const CONFIG = {
+seed: 1337,
+size: 25000,
+chunkSize: 2500,
+divisions: 128,
+heightScale: 850,
+oceanLevel: 10,
+inlandWaterLevel: 33,
+cameraDistance: 50,
+playerSpeed: 45,
+runMultiplier: 2.5,
+viewDistance: 2,
+// OPTIMIZED: Grass and Tree configuration
+grassViewDistance: 350, // Max distance to render grass (GPU culling)
+grassSpacing: 8, // Wider spacing for grass clumps
+grassClumpSize: 4, // How many blades per clump
+grassScale: 1.8,
+treesPerChunk: 150, // Max trees per chunk
+};
+document.getElementById('seed').textContent = CONFIG.seed;
+
+// --- NOISE GENERATION ---
+const baseNoise = new ImprovedNoise();
+const controlNoise = new ImprovedNoise();
+const mountainNoise = new ImprovedNoise();
+const warpNoise = new ImprovedNoise();
+const lakeNoise = new ImprovedNoise();
+const islandMaskNoise = new ImprovedNoise();
+const regionalHeightNoise = new ImprovedNoise();
+const hillsNoise = new ImprovedNoise();
+
+// Helper for multi-octave noise
+function multiOctave(noiseFn, x, y, z, octaves = 4, lac = 2, gain = 0.5) {
+    let sum = 0, amp = 1, freq = 1, max = 0;
+    for (let i = 0; i < octaves; i++) {
+        sum += noiseFn.noise(x * freq, y * freq, z * freq) * amp;
+        max += amp;
+        amp *= gain;
+        freq *= lac;
+    }
+    return sum / max;
+}
+
+// --- WORLD GENERATION ---
+function getHeightAt(x, z) {
+    const worldOffsetX = CONFIG.seed;
+    const worldOffsetZ = CONFIG.seed / 2;
+    const baseLandHeight = 30;
+    const seaFloor = -20;
+
+    const regionalHeightScale = 0.0001;
+    let regionalHeight = multiOctave(regionalHeightNoise, (x + worldOffsetX) * regionalHeightScale, (z + worldOffsetZ) * regionalHeightScale, 850, 2, 2.0, 0.5);
+    regionalHeight = (regionalHeight + 1) / 2;
+    const regionalHeightMultiplier = 0.6 + regionalHeight * 0.8;
+
+    const controlScale = 0.00055;
+    let rawControlValue = multiOctave(controlNoise, (x + worldOffsetX) * controlScale, (z + worldOffsetZ) * controlScale, 0, 3, 2.0, 0.5);
+    let remappedControlValue = (rawControlValue + 1) / 2;
+    let mountainStrength = THREE.MathUtils.smoothstep(remappedControlValue, 0.52, 0.7);
+
+    const warpScale = 0.005;
+    const warpStrength = 120;
+    let qx = multiOctave(warpNoise, (x + worldOffsetX) * warpScale, (z + worldOffsetZ) * warpScale, 100, 2, 2, 0.5) * warpStrength;
+    let qz = multiOctave(warpNoise, (x + worldOffsetX) * warpScale, (z + worldOffsetZ) * warpScale, 200, 2, 2, 0.5) * warpStrength;
+    
+    const plainsScale = 0.003;
+    let plainsNoise = multiOctave(baseNoise, (x + worldOffsetX) * plainsScale, (z + worldOffsetZ) * plainsScale, 300, 5, 2.2, 0.45);
+    let plainsDetailHeight = ((plainsNoise + 1) / 2) * (10 - mountainStrength * 10);
+    const hillsScale = 0.0009;
+    let hillsBaseHeight = multiOctave(hillsNoise, (x + worldOffsetX) * hillsScale, (z + worldOffsetZ) * hillsScale, 900, 3, 2.0, 0.5);
+    hillsBaseHeight = ((hillsBaseHeight + 1) / 2) * 50;
+    let plainsHeight = plainsDetailHeight + hillsBaseHeight;
+
+    const mountainScale = 0.002;
+    let mountainDetail = multiOctave(mountainNoise, (x + worldOffsetX + qx) * mountainScale, (z + worldOffsetZ + qz) * mountainScale, 400, 7, 2.4, 0.48);
+    const broadMountainScale = 0.0008;
+    let mountainBroad = multiOctave(baseNoise, (x + worldOffsetX) * broadMountainScale, (z + worldOffsetZ) * broadMountainScale, 500, 4, 2.0, 0.5);
+    let mountainRawHeight = (mountainBroad * 0.6 + mountainDetail * 0.4 + 1) / 2;
+    mountainRawHeight = Math.pow(mountainRawHeight, 2.2) * CONFIG.heightScale * regionalHeightMultiplier;
+
+    const terraceStep = 90;
+    let mountainTerracedHeight = Math.round(mountainRawHeight / terraceStep) * terraceStep;
+    const edgeBreakScale = 0.05;
+    let edgeNoise = multiOctave(baseNoise, x * edgeBreakScale, z * edgeBreakScale, 600, 3, 2, 0.5) * 4.0;
+    mountainTerracedHeight += edgeNoise;
+    let landHeight = baseLandHeight + THREE.MathUtils.lerp(plainsHeight, mountainTerracedHeight, mountainStrength);
+
+    const distFromCenter = Math.hypot(x, z);
+    const maxDist = CONFIG.size * 0.7;
+    let falloff = 1.0 - THREE.MathUtils.smoothstep(distFromCenter, maxDist * 0.6, maxDist);
+    const islandMaskScale = 0.00035;
+    let islandMaskNoiseVal = multiOctave(islandMaskNoise, x * islandMaskScale, z * islandMaskScale, 800, 3, 2.0, 0.5);
+    let continentalMask = falloff + islandMaskNoiseVal * 0.15;
+    continentalMask = THREE.MathUtils.clamp(continentalMask, 0.0, 1.0);
+
+    let finalHeight = THREE.MathUtils.lerp(seaFloor, landHeight, continentalMask);
+    
+    const lakeMaskScale = 0.0025;
+    let lakeMask = multiOctave(lakeNoise, (x + worldOffsetX) * lakeMaskScale, (z + worldOffsetZ) * lakeMaskScale, 700, 3, 2, 0.5);
+    if (mountainStrength < 0.1 && lakeMask > 0.75 && finalHeight < CONFIG.inlandWaterLevel + 15) {
+        const lakeBlend = THREE.MathUtils.smoothstep(lakeMask, 0.75, 0.8);
+        const lakeDepth = 25 * lakeBlend;
+        finalHeight -= lakeDepth;
+    }
+    
+    return finalHeight;
+}
+
+// FIXED: Restored the missing getMoistureAt function
+function getMoistureAt(x,z){
+    let moisture = multiOctave(mountainNoise,x*0.001,z*0.001, 500, 4,2.1,0.5);
+    return Math.min(1, Math.max(0, moisture));
+}
+
+function getBiome(x, z, height, moisture){
+    if(height < CONFIG.inlandWaterLevel + 0.5) return 'InlandWater';
+    if(height < CONFIG.inlandWaterLevel + 3.5) return 'Beach';
+    if(height < CONFIG.oceanLevel+2)return'Water';
+    if(height < CONFIG.oceanLevel+5)return'Beach';
+    if(height < 120) {
+        if(moisture > 0.6) return 'Forest';
+        return 'Grassland';
+    }
+    if(height < 250)return'Hills';
+    if(height < 400)return'Mountains';
+    return'Peaks';
+}
+
+function biomeColorNum(b){
+switch(b){
+case 'InlandWater': return 0x65c3d1;
+case'Water':return 0x3d95c4;
+case'Beach':return 0xebe2c4;
+case'Grassland':return 0x99d789;
+case'Forest':return 0x6fa965;
+case'Hills':return 0xcea88a;
+case'Mountains':return 0xa9b2b9;
+case'Peaks':return 0xe0e4e8;
+default:return 0x888888;
+}
+}
+
+// --- THREE SETUP ---
+const container = document.getElementById('gameContainer');
+const canvas = document.createElement('canvas');
+canvas.id='three-canvas';
+container.appendChild(canvas);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio * 0.9);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = false;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa0d8ef);
+scene.fog = new THREE.Fog(0xa0d8ef, 300, 2200);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 4000);
+camera.position.set(0, CONFIG.cameraDistance, CONFIG.cameraDistance * 1.2);
+
+const ambientLight = new THREE.AmbientLight(0xadc5e0, 0.8);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.5);
+dirLight.position.set(150, 250, 100);
+scene.add(dirLight);
+
+// --- TERRAIN SHADER ---
+// FIXED: Restored the original stylized shader for the terrain
+const vertexShader = `
+varying vec3 vNormal;
+varying vec3 vColor;
+varying vec2 vUv;
+varying vec3 vWorldPos;
+void main(){
+vNormal = normalMatrix * normal;
+vColor = color;
+vUv = uv;
+vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+const fragmentShader = `
+varying vec3 vNormal;
+varying vec3 vColor;
+varying vec2 vUv;
+varying vec3 vWorldPos;
+
+uniform vec3 uLightDirection;
+uniform vec3 uRockColor;
+uniform vec3 uShadowColor;
+
+float rand(vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
+void main(){
+    vec3 normal = normalize(vNormal);
+
+    float slope = dot(normal, vec3(0.0, 1.0, 0.0));
+    float rockBlend = smoothstep(0.5, 0.3, slope);
+
+    float colorNoise = rand(vWorldPos.xz * 0.1) * 0.1 - 0.05;
+    vec3 variedColor = vColor + colorNoise;
+
+    vec3 finalColor = mix(variedColor, uRockColor, rockBlend);
+
+    vec3 sunColor = vec3(1.0, 0.95, 0.85);
+    float lightFactor = max(0.0, dot(normal, uLightDirection));
+    
+    float shadow1 = smoothstep(0.4, 0.5, lightFactor);
+    float shadow2 = smoothstep(0.8, 0.9, lightFactor);
+    float shading = mix(0.3, 0.6, shadow1);
+    shading = mix(shading, 1.0, shadow2);
+    
+    vec3 lightTint = mix(uShadowColor, sunColor, shading);
+
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    float rim = 1.0 - max(0.0, dot(viewDir, normal));
+    rim = pow(rim, 2.5) * 1.5;
+    finalColor += rim * 0.2 * sunColor;
+
+    gl_FragColor = vec4(finalColor * lightTint, 1.0);
+}
+`;
+const toonMaterial = new THREE.ShaderMaterial({
+vertexShader,
+fragmentShader,
+vertexColors:true,
+uniforms: {
+uLightDirection:{ value: new THREE.Vector3(0,1,0) },
+cameraPosition:{ value: camera.position },
+uRockColor: { value: new THREE.Color(0xa9b2b9) },
+uShadowColor: { value: new THREE.Color(0x6a7694) }
+}
+});
+
+
+// --- GRASS ---
+const grassVertexShader = `
+    precision mediump float;
+    attribute vec4 color;
+    varying vec4 vColor;
+    uniform float uTime;
+    uniform vec3 uPlayerPos;
+    uniform float uViewDistance;
+
+    void main() {
+        vColor = color;
+        vec4 modelPos = modelMatrix * instanceMatrix * vec4(position, 1.0);
+        
+        float dist = distance(uPlayerPos, modelPos.xyz);
+        if (dist > uViewDistance) {
+            modelPos.y = -1000.0; // Hide if too far
+        }
+
+        float windStrength = 0.2;
+        float windSpeed = 2.0;
+        float windScale = 0.1;
+        
+        if (position.y > 0.1) {
+            float windX = sin(uTime * windSpeed + modelPos.x * windScale) * windStrength;
+            float windZ = cos(uTime * windSpeed + modelPos.z * windScale) * windStrength;
+            modelPos.x += windX;
+            modelPos.z += windZ;
+        }
+        
+        gl_Position = projectionMatrix * viewMatrix * modelPos;
+    }
+`;
+
+const grassFragmentShader = `
+    precision mediump float;
+    varying vec4 vColor;
+    void main() {
+        gl_FragColor = vColor;
+    }
+`;
+
+function createGrassGeometry() {
+    const blade = new THREE.PlaneGeometry(0.8, 1.5, 1, 3);
+    blade.translate(0, 0.75, 0);
+    
+    const finalGeometry = blade;
+
+    const colors = [];
+    const color = new THREE.Color();
+    for (let i = 0; i < finalGeometry.attributes.position.count; i++) {
+        color.setHSL(0.25 + (Math.random() - 0.5) * 0.05, 0.7, 0.4 + (Math.random() - 0.5) * 0.2);
+        colors.push(color.r, color.g, color.b, 1.0);
+    }
+    finalGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
+    
+    return finalGeometry;
+}
+
+
+// --- WORLD & CHUNKING ---
+class World {
+    constructor(scene) {
+        this.scene = scene;
+        this.chunks = new Map();
+        
+        this.grassGeometry = createGrassGeometry();
+        this.grassMaterial = new THREE.ShaderMaterial({
+            vertexShader: grassVertexShader,
+            fragmentShader: grassFragmentShader,
+            uniforms: {
+                uTime: { value: 0 },
+                uPlayerPos: { value: new THREE.Vector3() },
+                uViewDistance: { value: CONFIG.grassViewDistance },
+            },
+            vertexColors: true,
+            side: THREE.DoubleSide,
+        });
+        
+        this.treeTrunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 5.0, 7);
+        this.treeLeavesGeo = new THREE.IcosahedronGeometry(3.2, 0);
+        this.treeTrunkMat = new THREE.MeshToonMaterial({color:0x8b5a2b});
+        this.treeLeavesMat = new THREE.MeshToonMaterial({color:0x6fa965});
+    }
+
+    getChunk(x, z) {
+        const chunkId = `${x},${z}`;
+        if (this.chunks.has(chunkId)) {
+            return this.chunks.get(chunkId);
+        } else {
+            const newChunk = new Chunk(this, x, z);
+            this.chunks.set(chunkId, newChunk);
+            return newChunk;
+        }
+    }
+
+    update(playerPosition) {
+        this.grassMaterial.uniforms.uPlayerPos.value.copy(playerPosition);
+        const currentChunkX = Math.floor(playerPosition.x / CONFIG.chunkSize);
+        const currentChunkZ = Math.floor(playerPosition.z / CONFIG.chunkSize);
+        
+        const visibleChunkIds = new Set();
+
+        for (let x = currentChunkX - CONFIG.viewDistance; x <= currentChunkX + CONFIG.viewDistance; x++) {
+            for (let z = currentChunkZ - CONFIG.viewDistance; z <= currentChunkZ + CONFIG.viewDistance; z++) {
+                const chunkId = `${x},${z}`;
+                visibleChunkIds.add(chunkId);
+                this.getChunk(x, z);
+            }
+        }
+        
+        for (const [chunkId, chunk] of this.chunks.entries()) {
+            if (!visibleChunkIds.has(chunkId)) {
+                chunk.dispose();
+                this.chunks.delete(chunkId);
+            }
+        }
+    }
+}
+
+class Chunk {
+    constructor(world, x, z) {
+        this.world = world;
+        this.scene = world.scene;
+        this.x = x;
+        this.z = z;
+        this.id = `${x},${z}`;
+        this.mesh = null;
+        this.grassMesh = null;
+        this.treeTrunkMesh = null;
+        this.treeLeavesMesh = null;
+        this.generate();
+    }
+
+    generate() {
+        const geometry = new THREE.PlaneGeometry(CONFIG.chunkSize, CONFIG.chunkSize, CONFIG.divisions, CONFIG.divisions);
+        geometry.rotateX(-Math.PI / 2);
+
+        const posAttr = geometry.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            const worldX = posAttr.getX(i) + this.x * CONFIG.chunkSize;
+            const worldZ = posAttr.getZ(i) + this.z * CONFIG.chunkSize;
+            posAttr.setY(i, getHeightAt(worldX, worldZ));
+        }
+        posAttr.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        const colors = new Float32Array(posAttr.count * 3);
+        for (let vi = 0; vi < posAttr.count; vi++) {
+            const h = posAttr.getY(vi);
+            const worldX = posAttr.getX(vi) + this.x * CONFIG.chunkSize;
+            const worldZ = posAttr.getZ(vi) + this.z * CONFIG.chunkSize;
+            const biome = getBiome(worldX, worldZ, h, getMoistureAt(worldX, worldZ));
+            const col = new THREE.Color(biomeColorNum(biome));
+            colors[vi*3+0] = col.r; colors[vi*3+1] = col.g; colors[vi*3+2] = col.b;
+        }
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        this.mesh = new THREE.Mesh(geometry, toonMaterial);
+        this.mesh.position.set(this.x * CONFIG.chunkSize, 0, this.z * CONFIG.chunkSize);
+        this.scene.add(this.mesh);
+        
+        this.generateGrass();
+        this.generateTrees();
+    }
+    
+    generateGrass() {
+        const matrices = [];
+        const dummy = new THREE.Object3D();
+        const startX = this.x * CONFIG.chunkSize;
+        const startZ = this.z * CONFIG.chunkSize;
+
+        for (let gx = 0; gx < CONFIG.chunkSize; gx += CONFIG.grassSpacing) {
+            for (let gz = 0; gz < CONFIG.chunkSize; gz += CONFIG.grassSpacing) {
+                const jitterX = (Math.random() - 0.5) * CONFIG.grassSpacing;
+                const jitterZ = (Math.random() - 0.5) * CONFIG.grassSpacing;
+                const x = startX + gx + jitterX;
+                const z = startZ + gz + jitterZ;
+                const y = getHeightAt(x, z);
+
+                const biome = getBiome(x, z, y, getMoistureAt(x, z));
+                if ((biome === 'Grassland' || biome === 'Hills') && y > CONFIG.inlandWaterLevel + 2) {
+                    const hX = getHeightAt(x + 1, z);
+                    const hZ = getHeightAt(x, z + 1);
+                    const slope = Math.hypot(hX - y, hZ - y);
+                    if (slope < 2.0) {
+                        dummy.position.set(x, y, z);
+                        dummy.rotation.y = Math.random() * Math.PI * 2;
+                        dummy.scale.setScalar(CONFIG.grassScale * (0.8 + Math.random() * 0.4));
+                        dummy.updateMatrix();
+                        matrices.push(dummy.matrix.clone());
+                    }
+                }
+            }
+        }
+        
+        if (matrices.length > 0) {
+            this.grassMesh = new THREE.InstancedMesh(this.world.grassGeometry, this.world.grassMaterial, matrices.length);
+            for (let i = 0; i < matrices.length; i++) this.grassMesh.setMatrixAt(i, matrices[i]);
+            this.grassMesh.instanceMatrix.needsUpdate = true;
+            this.scene.add(this.grassMesh);
+        }
+    }
+    
+    generateTrees() {
+        const trunkMatrices = [];
+        const leavesMatrices = [];
+        const dummy = new THREE.Object3D();
+        
+        for(let i = 0; i < CONFIG.treesPerChunk; i++) {
+            const x = this.x * CONFIG.chunkSize + Math.random() * CONFIG.chunkSize;
+            const z = this.z * CONFIG.chunkSize + Math.random() * CONFIG.chunkSize;
+            const y = getHeightAt(x, z);
+            
+            const biome = getBiome(x, z, y, getMoistureAt(x, z));
+            let shouldPlace = (biome === 'Forest' && Math.random() < 0.6) || (biome === 'Hills' && Math.random() < 0.1);
+            
+            if (shouldPlace && y > CONFIG.inlandWaterLevel + 2) {
+                dummy.position.set(x, y, z);
+                dummy.rotation.y = Math.random() * Math.PI * 2;
+                dummy.scale.setScalar(0.8 + Math.random() * 0.5);
+                dummy.updateMatrix();
+                trunkMatrices.push(dummy.matrix.clone());
+                leavesMatrices.push(dummy.matrix.clone());
+            }
+        }
+        
+        if (trunkMatrices.length > 0) {
+            this.treeTrunkMesh = new THREE.InstancedMesh(this.world.treeTrunkGeo, this.world.treeTrunkMat, trunkMatrices.length);
+            this.treeLeavesMesh = new THREE.InstancedMesh(this.world.treeLeavesGeo, this.world.treeLeavesMat, leavesMatrices.length);
+            for(let i = 0; i < trunkMatrices.length; i++) {
+                this.treeTrunkMesh.setMatrixAt(i, trunkMatrices[i]);
+                this.treeLeavesMesh.setMatrixAt(i, leavesMatrices[i]);
+            }
+            this.treeTrunkMesh.instanceMatrix.needsUpdate = true;
+            this.treeLeavesMesh.instanceMatrix.needsUpdate = true;
+            this.scene.add(this.treeTrunkMesh, this.treeLeavesMesh);
+        }
+    }
+    
+    dispose() {
+        if (this.mesh) {
+            this.mesh.geometry.dispose();
+            this.scene.remove(this.mesh);
+        }
+        if (this.grassMesh) this.scene.remove(this.grassMesh);
+        if (this.treeTrunkMesh) this.scene.remove(this.treeTrunkMesh);
+        if (this.treeLeavesMesh) this.scene.remove(this.treeLeavesMesh);
+    }
+}
+
+const world = new World(scene);
+
+// --- PLAYER ---
+const playerGroup = new THREE.Group();
+const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.8,1.2,4,8), new THREE.MeshToonMaterial({color:0x4477FF}));
+body.position.y = 1.4;
+playerGroup.add(body);
+scene.add(playerGroup);
+playerGroup.position.set(0, getHeightAt(0,0) + 1.0, 0);
+
+// --- MINIMAP ---
+const minimap = document.getElementById('minimap');
+const mmCtx = minimap.getContext('2d');
+const mmSize = minimap.width;
+const mmImageData = mmCtx.createImageData(mmSize, mmSize);
+
+function renderMinimapOnce(){
+for (let j = 0; j < mmSize; j++){
+for (let i = 0; i < mmSize; i++){
+const wx = (i / (mmSize-1) - 0.5) * CONFIG.size;
+const wz = (j / (mmSize-1) - 0.5) * CONFIG.size;
+const h = getHeightAt(wx, wz);
+const m = getMoistureAt(wx, wz);
+const bi = getBiome(wx, wz, h, m);
+const col = new THREE.Color(biomeColorNum(bi));
+const idx = (j*mmSize + i)*4;
+mmImageData.data[idx] = Math.floor(col.r*255);
+mmImageData.data[idx+1] = Math.floor(col.g*255);
+mmImageData.data[idx+2] = Math.floor(col.b*255);
+mmImageData.data[idx+3] = 255;
+}
+}
+mmCtx.putImageData(mmImageData, 0, 0);
+}
+renderMinimapOnce();
+
+// --- HUD & INPUT ---
+const posEl = document.getElementById('pos'), biomeEl = document.getElementById('biome'), fpsEl = document.getElementById('fps');
+let frames = 0, lastFpsTime = performance.now();
+
+function updateHUD(now){
+frames++;
+if(now - lastFpsTime > 500){
+fpsEl.textContent = Math.round((frames * 1000) / (now - lastFpsTime));
+frames = 0;
+lastFpsTime = now;
+}
+const px = playerGroup.position.x;
+const pz = playerGroup.position.z;
+posEl.textContent = `${px.toFixed(0)}, ${pz.toFixed(0)}`;
+const bi = getBiome(px, pz, playerGroup.position.y, getMoistureAt(px, pz));
+biomeEl.textContent = bi;
+}
+
+let yaw=0, pitch=0.3, mouseDown=false, lastMouse=null;
+const dom = renderer.domElement;
+dom.addEventListener('pointerdown', e => { mouseDown=true; lastMouse = {x:e.clientX, y:e.clientY}; });
+dom.addEventListener('pointermove', e => {
+if(!mouseDown) return;
+yaw -= (e.clientX - lastMouse.x) * 0.004;
+pitch -= (e.clientY - lastMouse.y) * 0.004;
+pitch = Math.max(0.05, Math.min(Math.PI*0.45, pitch));
+lastMouse = {x:e.clientX, y:e.clientY};
+});
+dom.addEventListener('pointerup', () => { mouseDown=false; });
+dom.addEventListener('wheel', e => {
+CONFIG.cameraDistance = Math.max(8, Math.min(150, CONFIG.cameraDistance * (1 + e.deltaY * 0.001)));
+});
+
+const keys = {};
+window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function getInputVector(){
+const v = new THREE.Vector2();
+if(keys['w']||keys['arrowup']) v.y+=1;
+if(keys['s']||keys['arrowdown']) v.y-=1;
+if(keys['a']||keys['arrowleft']) v.x-=1;
+if(keys['d']||keys['arrowright']) v.x+=1;
+return v.normalize();
+}
+
+// --- RENDER LOOP ---
+window.addEventListener('resize', () => {
+camera.aspect = window.innerWidth/window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+const clock = new THREE.Clock();
+
+function animate(now){
+requestAnimationFrame(animate);
+const dt = Math.min(0.05, clock.getDelta());
+const elapsedTime = clock.getElapsedTime();
+
+world.update(playerGroup.position);
+
+const input = getInputVector();
+const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), forward);
+const move = new THREE.Vector3().addScaledVector(forward, input.y).addScaledVector(right, input.x).normalize();
+let speed = CONFIG.playerSpeed * (keys['shift'] ? CONFIG.runMultiplier : 1);
+playerGroup.position.addScaledVector(move, speed * dt);
+
+const groundY = getHeightAt(playerGroup.position.x, playerGroup.position.z);
+playerGroup.position.y = THREE.MathUtils.lerp(playerGroup.position.y, groundY + 1.0, dt * 8);
+
+const camOffset = new THREE.Vector3(
+Math.sin(yaw) * Math.cos(pitch) * CONFIG.cameraDistance,
+Math.sin(pitch) * CONFIG.cameraDistance,
+Math.cos(yaw) * Math.cos(pitch) * CONFIG.cameraDistance
+);
+camera.position.copy(playerGroup.position).add(camOffset);
+camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.5, playerGroup.position.z);
+
+toonMaterial.uniforms.uLightDirection.value.copy(dirLight.position).normalize();
+toonMaterial.uniforms.cameraPosition.value.copy(camera.position);
+world.grassMaterial.uniforms.uTime.value = elapsedTime;
+
+mmCtx.putImageData(mmImageData, 0, 0);
+const px = ((playerGroup.position.x / CONFIG.size) + 0.5) * mmSize;
+const pz = ((playerGroup.position.z / CONFIG.size) + 0.5) * mmSize;
+mmCtx.beginPath();
+mmCtx.fillStyle = '#ff4444';
+mmCtx.arc(px, pz, 4, 0, Math.PI*2);
+mmCtx.fill();
+
+updateHUD(now);
+renderer.render(scene, camera);
+}
+
+animate();
+</script>
+</body>
+</html>
