@@ -3,15 +3,27 @@ import type { Client } from '@colyseus/core'
 import { MeadowState, NetworkPlayer } from '../shared/roomState.ts'
 import { isPlayerPose, MAX_PLAYERS, PLAYER_COLORS, playerName, playerSpawn } from '../shared/protocol.ts'
 import { islandRadius } from '../src/game/world.ts'
+import { randomInt } from 'node:crypto'
+import { DICE_REQUEST_COOLDOWN_MS } from '../shared/dice.ts'
 
 export class MeadowRoom extends Room<{ state: MeadowState }> {
   maxClients = MAX_PLAYERS
   state = new MeadowState()
   private slots = new Map<string, number>()
   private receivedAt = new Map<string, number>()
+  private nextDiceRoll = 0
 
   onCreate() {
     this.setPatchRate(50)
+    this.onMessage('rollDice', client => {
+      const player = this.state.players.get(client.sessionId)
+      if (!player || !player.connected || performance.now() < this.nextDiceRoll) return
+      this.nextDiceRoll = performance.now() + DICE_REQUEST_COOLDOWN_MS
+      const dice = this.state.dice
+      // Ignore supplied values. Only the server decides room dice outcomes.
+      dice.first = randomInt(1, 7); dice.second = randomInt(1, 7)
+      dice.rollerId = client.sessionId; dice.rollerName = player.name; dice.id++
+    })
     this.onMessage('pose', (client, pose: unknown) => {
       const player = this.state.players.get(client.sessionId)
       if (!player || !isPlayerPose(pose)) return

@@ -1,0 +1,14 @@
+.music-controls { position: absolute; right: 35px; bottom: 72px; width: 220px; padding: 15px 17px 12px; border-radius: 16px; border: 1px solid #fffdf18c; background: #fff9edc9; backdrop-filter: blur(12px); color: #354c48; }
+.music-heading { display: flex; align-items: center; gap: 10px; }
+.music-heading > div { flex: 1; }
+.music-caption { display: block; font-size: 7px; letter-spacing: 1.2px; opacity: .6; }
+.music-heading strong { display: block; font-size: 13px; font-weight: 600; margin-top: 4px; }
+.music-heading button { width: 34px; height: 34px; background: #55765e; color: #fffdf0; border: 0; border-radius: 50%; cursor: pointer; font-size: 13px; }
+.music-heading button:disabled { opacity: .5; }
+.music-heading button:focus-visible { outline: 2px solid #354c48; outline-offset: 3px; }
+.music-indicator { width: 6px; height: 6px; border-radius: 50%; background: #9daf9e; }
+.music-indicator.is-playing { background: #628e6b; box-shadow: 0 0 0 4px #628e6b1c; }
+.music-volume { display: flex; gap: 12px; align-items: center; font-size: 10px; opacity: .75; margin-top: 12px; }
+.music-volume input { width: 100%; min-width: 0; accent-color: #55765e; cursor: pointer; }
+.music-controls p { font-size: 10px; line-height: 1.4; margin: 8px 0 0; color: #a7443b; }
+@media (max-width: 700px) { .music-controls { bottom: 100px; right: 18px; width: 185px; padding: 12px; } }

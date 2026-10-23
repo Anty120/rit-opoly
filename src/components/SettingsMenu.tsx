@@ -36,10 +36,14 @@ export function SettingsMenu({ settings, onChange, onRestore, stats, open, onOpe
         <label className="setting-color">Grass color<input type="color" value={settings.grassColor} onChange={event => onChange('grassColor', event.target.value)} /></label>
         <SettingToggle label="Grass receives shadows" checked={settings.grassShadows} onChange={value => onChange('grassShadows', value)} />
       </fieldset>
+      <fieldset><legend>Music visualizer</legend>
+        <SettingToggle label="Animated speaker display" checked={settings.visualizerEnabled} onChange={value => onChange('visualizerEnabled', value)} />
+        <SettingSlider setting="visualizerScale" label="Speaker scale" settings={settings} onChange={onChange} percent />
+      </fieldset>
       <fieldset><legend>Performance</legend>
         <SettingToggle label="Auto-adjust render quality" checked={settings.adaptiveQuality} onChange={value => onChange('adaptiveQuality', value)} />
         <SettingSlider setting="renderScale" label={settings.adaptiveQuality ? 'Maximum render scale' : 'Render scale'} settings={settings} onChange={onChange} percent />
-        <p className="settings-hint">Lower density or render scale for more FPS. Distant grass automatically uses less detail.</p>
+        <p className="settings-hint">Auto quality prioritizes smooth movement and can lower resolution under sustained load. Lower grass density for more FPS.</p>
       </fieldset>
       <button className="restore-button" onClick={onRestore}>Restore defaults</button>
     </section>}

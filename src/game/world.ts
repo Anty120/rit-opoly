@@ -10,7 +10,7 @@ export const rocks = [
   { x: -10, z: -6, size: 1.6 }, { x: -12, z: -4.8, size: 0.9 },
   { x: 10, z: 2, size: 1.5 }, { x: 11.7, z: 3.2, size: 0.7 },
   { x: -13, z: 12, size: 1.1 }, { x: 14, z: -12, size: 1.2 },
-  { x: 3, z: -18, size: 0.85 },
+  { x: 8, z: -19, size: 0.85 },
 ]
 
 export function islandRadius(angle: number) {

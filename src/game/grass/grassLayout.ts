@@ -1,4 +1,4 @@
-import { islandRadius, randomGenerator, rocks } from '../world.ts'
+import { BOARD_HALF, islandRadius, randomGenerator, rocks } from '../world.ts'
 
 export interface GrassPatchData { id: string; x: number; z: number; count: number; matrices: Float32Array; colors: Float32Array }
 
@@ -14,7 +14,7 @@ export function createGrassLayout(): GrassPatchData[] {
       const localX = (random() - .5) * 8, localZ = (random() - .5) * 8
       const x = centerX + localX, z = centerZ + localZ
       if (Math.hypot(x, z) > islandRadius(Math.atan2(z, x)) - .15) continue
-      if (Math.abs(x) < 4.5 && Math.abs(z) < 4.5) continue
+      if (Math.abs(x) < BOARD_HALF + .1 && Math.abs(z) < BOARD_HALF + .1) continue
       if (rocks.some(rock => Math.hypot(x - rock.x, z - rock.z) < rock.size * .76)) continue
       const patch = .5 + .5 * Math.sin(x * .35 + Math.sin(z * .25) * 1.6)
       const angle = -.65 + Math.sin(x * .16 + z * .22) * .85 + (random() - .5) * 1.8

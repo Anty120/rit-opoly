@@ -10,6 +10,8 @@ export interface GameSettings {
   grassShadows: boolean
   renderScale: number
   adaptiveQuality: boolean
+  visualizerScale: number
+  visualizerEnabled: boolean
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -17,6 +19,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
   grassDensity: .85, grassHeight: 1, grassWind: 1, grassSwaySpeed: 1,
   grassColor: '#a5dcc5', grassShadows: true,
   renderScale: 1, adaptiveQuality: true,
+  visualizerScale: 2,
+  visualizerEnabled: true,
 }
 
 export const SETTING_RANGES = {
@@ -24,6 +28,7 @@ export const SETTING_RANGES = {
   grassDensity: [.25, 1, .05], grassHeight: [.4, 1.5, .05], grassWind: [0, 2, .1],
   grassSwaySpeed: [.25, 2.5, .05],
   renderScale: [.65, 1.5, .05],
+  visualizerScale: [.5, 3, .1],
 } as const
 
 export type NumericSetting = keyof typeof SETTING_RANGES
@@ -41,7 +46,7 @@ export function sanitizeSettings(value: unknown): GameSettings {
     }
   }
   if (typeof input.grassColor === 'string' && /^#[0-9a-f]{6}$/i.test(input.grassColor)) settings.grassColor = input.grassColor
-  for (const key of ['grassShadows', 'adaptiveQuality'] as const) {
+  for (const key of ['grassShadows', 'adaptiveQuality', 'visualizerEnabled'] as const) {
     if (typeof input[key] === 'boolean') settings[key] = input[key]
   }
   settings.runSpeed = Math.max(settings.walkSpeed, settings.runSpeed)

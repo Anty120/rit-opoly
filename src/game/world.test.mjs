@@ -7,6 +7,9 @@ import { createGrassLayout } from './grass/grassLayout.ts'
 import { createGrassGeometry } from './grass/grassGeometry.ts'
 import { grassDensityAtDistance, grassDistanceToPatch, grassDrawCount } from './grass/grassLod.ts'
 import './playerPhysics.test.mjs'
+import '../dice/dice.test.mjs'
+import '../dice/dicePhysics.test.mjs'
+import '../music/audioLevel.test.mjs'
 
 const constrainPlayer = (x, z) => resolvePlayerHorizontal(x, z, 0)
 
@@ -106,7 +109,7 @@ test('grass patches are deterministic and exclude the board, rocks, and island e
     for (let i = 0; i < patch.count; i++) {
       const x = patch.x + patch.matrices[i * 16 + 12], z = patch.z + patch.matrices[i * 16 + 14]
       assert.ok(Math.hypot(x, z) <= islandRadius(Math.atan2(z, x)) - .1499)
-      assert.ok(Math.abs(x) >= 4.4999 || Math.abs(z) >= 4.4999)
+      assert.ok(Math.abs(x) >= BOARD_HALF + .0999 || Math.abs(z) >= BOARD_HALF + .0999)
       assert.ok(rocks.every(rock => Math.hypot(x - rock.x, z - rock.z) >= rock.size * .76 - .0001))
       assert.ok(patch.matrices[i * 16 + 5] > 0)
     }

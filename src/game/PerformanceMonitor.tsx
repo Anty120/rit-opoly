@@ -17,15 +17,15 @@ export function PerformanceMonitor({ settings, stats }: { settings: GameSettings
     if (current.seconds < 1) return
     const frameMs = current.seconds * 1000 / current.frames
     Object.assign(stats.current, { fps: 1000 / frameMs, frameMs, drawCalls: gl.info.render.calls, triangles: gl.info.render.triangles, dpr: viewport.dpr })
-    if (settings.adaptiveQuality && current.settle > 3) {
-      // Preserve fine board lettering; lower scales remain available by explicit choice.
-      const floor = Math.min(.85, settings.renderScale)
-      if (frameMs > 24 && viewport.dpr > floor) {
-        setDpr(Math.max(floor, Math.round((viewport.dpr - .1) * 100) / 100)); current.goodWindows = 0
+    if (settings.adaptiveQuality && current.settle > 2) {
+      // Favor smooth movement on slower GPUs; avoid resizing every slow frame.
+      const floor = Math.min(.65, settings.renderScale)
+      if (frameMs > 20 && viewport.dpr > floor) {
+        setDpr(Math.max(floor, Math.round((viewport.dpr - .1) * 100) / 100)); current.goodWindows = 0; current.settle = 0
       } else if (frameMs < 18) {
         current.goodWindows++
-        if (current.goodWindows >= 5 && viewport.dpr < settings.renderScale) {
-          setDpr(Math.min(settings.renderScale, Math.round((viewport.dpr + .05) * 100) / 100)); current.goodWindows = 0
+        if (current.goodWindows >= 8 && viewport.dpr < settings.renderScale) {
+          setDpr(Math.min(settings.renderScale, Math.round((viewport.dpr + .05) * 100) / 100)); current.goodWindows = 0; current.settle = 0
         }
       } else current.goodWindows = 0
     }

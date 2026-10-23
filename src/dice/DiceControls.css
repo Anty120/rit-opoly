@@ -1,0 +1,18 @@
+.dice-controls { position: absolute; left: 35px; bottom: 96px; width: 198px; border: 1px solid #fffdf18c; border-radius: 16px; padding: 15px; background: #fff9eddb; backdrop-filter: blur(10px); color: #354c48; }
+.dice-caption { font-size: 7px; letter-spacing: 1.3px; opacity: .65; }
+.dice-preview { display: flex; align-items: center; gap: 9px; margin: 12px 0; }
+.dice-preview strong { margin-left: auto; font-size: 27px; font-weight: 600; }
+.dice-pips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 39px; height: 39px; padding: 7px; border-radius: 7px; background: #fffdf5; border: 1px solid #354c4829; box-shadow: 0 2px 0 #354c481c; }
+.dice-pips i { border-radius: 50%; }
+.dice-pips.dice-unknown { display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 600; }
+.dice-pips .pip-on { background: #354c48; }
+.dice-controls button { width: 100%; background: #55765e; color: #fffdf0; border: 0; border-radius: 9px; padding: 10px; font-size: 12px; cursor: pointer; }
+.dice-controls button:disabled { cursor: default; opacity: .5; }
+.dice-controls button:focus-visible { outline: 2px solid #354c48; outline-offset: 3px; }
+.dice-controls p { font-size: 10px; line-height: 1.4; margin: 10px 0 0; overflow-wrap: anywhere; }
+.dice-controls [role="alert"] { color: #a7443b; }
+.is-rolling .dice-unknown { animation: dice-wobble .18s ease-in-out infinite alternate; }
+.is-rolling .dice-pips:nth-child(2) { animation-delay: -.09s; }
+@keyframes dice-wobble { from { transform: translateY(-2px) rotate(-8deg); } to { transform: translateY(2px) rotate(8deg); } }
+@media (max-width: 700px) { .dice-controls { left: 18px; bottom: 172px; width: 164px; padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { .is-rolling .dice-pips { animation: none; } }

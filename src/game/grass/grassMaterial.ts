@@ -35,6 +35,9 @@ export function createGrassMaterial(uniforms: GrassUniforms) {
       float distanceToCamera = length(root.xz - cameraPosition.xz);
       float lodDensity = (1. - smoothstep(14., 26., distanceToCamera) * .65) * (1. - smoothstep(26., 45., distanceToCamera) * .66);
       float presence = smoothstep(grassRank - .02, grassRank + .02, lodDensity * uDensity);
+      // Fully thinned blades have no visible triangles. Skip their wind texture,
+      // trigonometry, lighting and projection work instead of animating them.
+      if (presence <= .0001) { gl_Position = vec4(2., 2., 2., 1.); return; }
       float width = min(2.4, inversesqrt(max(.1, lodDensity * uDensity)));
       // Broaden sparse distant blades slightly to preserve the soft meadow coverage.
       transformed.x = .28 * position.y * position.y + (position.x - .28 * position.y * position.y) * width;

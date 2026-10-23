@@ -5,6 +5,8 @@ import type { MeadowState } from '../../shared/roomState'
 import { playerName, ROOM_TYPE } from '../../shared/protocol'
 import type { PlayerIdentity, PlayerPose, PlayerSnapshot } from '../../shared/protocol'
 import type { ConnectionStatus, MultiplayerSession, RoomSession } from './types'
+import { INITIAL_DICE } from '../../shared/dice'
+import type { DiceRoll } from '../../shared/dice'
 
 type MeadowConnection = Room<MeadowState>
 
@@ -13,6 +15,7 @@ export function useMultiplayer(): MultiplayerSession {
   const [session, setSession] = useState<RoomSession | null>(null)
   const [roster, setRoster] = useState<PlayerIdentity[]>([])
   const [error, setError] = useState('')
+  const [dice, setDice] = useState<DiceRoll>(INITIAL_DICE)
   const room = useRef<MeadowConnection | null>(null)
   const targets = useRef(new Map<string, PlayerSnapshot>())
   const generation = useRef(0), ready = useRef(false)
@@ -23,6 +26,7 @@ export function useMultiplayer(): MultiplayerSession {
     const previous = room.current; room.current = null
     targets.current.clear(); rosterKey.current = ''
     setSession(null); setRoster([]); setStatus('offline'); setError('')
+    setDice(INITIAL_DICE)
     if (previous) void previous.leave(true).catch(() => {}).finally(() => previous.removeAllListeners())
     const url = new URL(window.location.href); url.searchParams.delete('room'); window.history.replaceState(null, '', url)
   }, [])
@@ -44,9 +48,14 @@ export function useMultiplayer(): MultiplayerSession {
       const joined = mode === 'create' ? await client.create<MeadowState>(ROOM_TYPE, options) : await client.joinById<MeadowState>(roomId.trim(), options)
       if (request !== generation.current) { await joined.leave(true); return }
       room.current = joined
+      setDice(INITIAL_DICE)
       joined.reconnection.minUptime = 0
       const consume = (state: MeadowState) => {
         if (room.current !== joined || !state?.players) return
+        if (state.dice) setDice(previous => previous.id === state.dice.id ? previous : {
+          id: state.dice.id, first: state.dice.first, second: state.dice.second,
+          rollerId: state.dice.rollerId, rollerName: state.dice.rollerName,
+        })
         const identities: PlayerIdentity[] = [], present = new Set<string>()
         state.players.forEach((player, sessionId) => {
           const identity = { sessionId, name: player.name, color: player.color }
@@ -91,5 +100,9 @@ export function useMultiplayer(): MultiplayerSession {
   const respawn = useCallback(() => {
     if (ready.current && room.current?.connection.isOpen) room.current.send('respawn')
   }, [])
-  return { status, session, roster, targets, error, connect, leave, sendPose, respawn }
+  const rollDice = useCallback(() => {
+    if (!ready.current || !room.current?.connection.isOpen) return false
+    room.current.send('rollDice'); return true
+  }, [])
+  return { status, session, roster, targets, error, dice, rollDice, connect, leave, sendPose, respawn }
 }

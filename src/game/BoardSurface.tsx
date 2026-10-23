@@ -3,6 +3,7 @@ import { useLoader, useThree } from '@react-three/fiber'
 import { LinearFilter, LinearMipmapLinearFilter, MeshBasicMaterial, SRGBColorSpace, TextureLoader } from 'three'
 import boardImage from '../assets/board.png'
 import { BOARD_HALF, BOARD_HEIGHT } from './world'
+import { SceneWarmup } from './SceneWarmup'
 
 export function BoardSurface() {
   const texture = useLoader(TextureLoader, boardImage)
@@ -29,6 +30,7 @@ export function BoardSurface() {
   }, [texture])
   useEffect(() => () => material.dispose(), [material])
   return <group position={[0, BOARD_HEIGHT, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <SceneWarmup />
     <mesh material={material}>
       <planeGeometry args={[BOARD_HALF * 2, BOARD_HALF * 2]} />
     </mesh>
