@@ -1,4 +1,5 @@
 import { SPAWN } from '../src/game/world.ts'
+import { ISLAND_BOUNDS, RIVER } from '../src/game/worldConfig.ts'
 
 export const ROOM_TYPE = 'meadow'
 export const MAX_PLAYERS = 8
@@ -22,7 +23,7 @@ export function isPlayerPose(value: unknown): value is PlayerPose {
   if (!value || typeof value !== 'object') return false
   const pose = value as Record<string, unknown>
   return ['x', 'y', 'z', 'yaw'].every(key => typeof pose[key] === 'number' && Number.isFinite(pose[key]))
-    && Math.abs(pose.x as number) <= 28 && Math.abs(pose.z as number) <= 28
-    && (pose.y as number) >= 0 && (pose.y as number) <= 7 && Math.abs(pose.yaw as number) <= 10000
+    && Math.abs(pose.x as number) <= ISLAND_BOUNDS && Math.abs(pose.z as number) <= ISLAND_BOUNDS
+    && (pose.y as number) >= -RIVER.depth - .05 && (pose.y as number) <= 7 && Math.abs(pose.yaw as number) <= 10000
 }
 

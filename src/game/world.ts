@@ -1,4 +1,6 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three'
+import { islandRadius, terrainHeight } from './worldConfig.ts'
+export { islandRadius } from './worldConfig.ts'
 
 // export const BOARD_HALF = 4.4
 export const BOARD_HALF = 8
@@ -13,9 +15,6 @@ export const rocks = [
   { x: 8, z: -19, size: 0.85 },
 ]
 
-export function islandRadius(angle: number) {
-  return 26 + Math.sin(angle * 3 + 1) * 1.1 + Math.sin(angle * 7) * 0.55
-}
 
 export function randomGenerator(seed: number) {
   return () => {
@@ -29,18 +28,27 @@ export function islandGeometry() {
   const positions: number[] = []
   const colors: number[] = []
   const random = randomGenerator(73)
-  const sides = 96
+  const sides = 160
   const point = (i: number, layer: number) => {
     const angle = i / sides * Math.PI * 2
     const radius = islandRadius(angle) * [1, 0.96, 0.76, 0.44][layer]
-    return [Math.cos(angle) * radius, [0, -1.8, -4.5, -7][layer], Math.sin(angle) * radius]
+    const x = Math.cos(angle) * radius, z = Math.sin(angle) * radius
+    return [x, layer === 0 ? terrainHeight(x, z) : [0, -1.8, -4.5, -7][layer], z]
   }
   const triangle = (a: number[], b: number[], c: number[], color: number[]) => {
     positions.push(...a, ...b, ...c)
     colors.push(...color, ...color, ...color)
   }
   for (let i = 0; i < sides; i++) {
-    triangle([0, 0, 0], point(i + 1, 0), point(i, 0), [0.12, 0.29, 0.22])
+    const top = (side: number, ring: number) => {
+      const edge = point(side, 0), x = edge[0] * ring / 48, z = edge[2] * ring / 48
+      return [x, terrainHeight(x, z), z]
+    }
+    for (let ring = 0; ring < 48; ring++) {
+      const a = top(i, ring), b = top(i + 1, ring), c = top(i, ring + 1), d = top(i + 1, ring + 1)
+      if (ring) triangle(a, b, c, [.12, .29, .22])
+      triangle(b, d, c, [.12, .29, .22])
+    }
     for (let layer = 0; layer < 3; layer++) {
       const shade = random() * 0.12
       const color = [0.40 + shade, 0.44 + shade, 0.40 + shade]

@@ -19,6 +19,8 @@ import { MusicVisualizer } from '../music/MusicVisualizer'
 import { DEFAULT_CAMERA_ORBIT } from './cameraConfig'
 import type { DiceController } from '../dice/useDice'
 import { Dice } from '../dice/Dice'
+import { River } from './water/River'
+import { Bridges } from './water/Bridges'
 
 export function GameScene({ reset, input, settings, onReset, paused, multiplayer, music, dice }: {
   reset: number; input: PlayerInput; settings: GameSettings; onReset: () => void; paused: boolean
@@ -32,6 +34,8 @@ export function GameScene({ reset, input, settings, onReset, paused, multiplayer
   return <>
     <Lighting />
     <Island />
+    <River />
+    <Bridges />
     <Grass player={player} settings={settings} />
     <Board />
     <Dice dice={dice} />

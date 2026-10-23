@@ -1,13 +1,14 @@
 import { DodecahedronGeometry, Euler, Matrix4, Plane, Quaternion, Triangle, Vector3 } from 'three'
 import { BOARD_HALF, BOARD_HEIGHT, islandRadius, PLAYER_HEIGHT, PLAYER_RADIUS, rocks } from './world.ts'
 import { rockTransform } from './rockTransform.ts'
+import { BRIDGES, bridgeHeight, terrainHeight } from './worldConfig.ts'
 
 export const GRAVITY = 16
 const SKIN = .002
 const STEP_HEIGHT = .12
 
 export interface PlayerBody { x: number; y: number; z: number; velocityY: number; grounded: boolean }
-export interface SupportSurface { height: number; visualHeight: number; kind: 'ground' | 'board' | 'rock' }
+export interface SupportSurface { height: number; visualHeight: number; kind: 'ground' | 'board' | 'rock' | 'bridge' }
 
 // Bake the same low-poly rock geometry and transforms used by the R3F meshes.
 // The player tests cached planes/triangles; no scene raycasts or geometry work per frame.
@@ -38,7 +39,14 @@ function heightOnTriangle(triangle: Triangle, x: number, z: number) {
 }
 
 export function getSupportSurface(x: number, z: number, maxHeight = Infinity): SupportSurface {
-  let result: SupportSurface = { height: 0, visualHeight: 0, kind: 'ground' }
+  const ground = terrainHeight(x, z)
+  let result: SupportSurface = { height: ground, visualHeight: ground, kind: 'ground' }
+  for (const bridge of BRIDGES) {
+    const height = bridgeHeight(x, bridge)
+    if (Math.abs(x - bridge.x) <= bridge.halfX && Math.abs(z - bridge.z) <= bridge.halfZ && height <= maxHeight) {
+      result = { height, visualHeight: height, kind: 'bridge' }
+    }
+  }
   if (Math.abs(x) <= BOARD_HALF + PLAYER_RADIUS * .4 && Math.abs(z) <= BOARD_HALF + PLAYER_RADIUS * .4 && BOARD_HEIGHT <= maxHeight) {
     result = { height: BOARD_HEIGHT, visualHeight: BOARD_HEIGHT, kind: 'board' }
   }
@@ -56,6 +64,13 @@ export function getSupportSurface(x: number, z: number, maxHeight = Infinity): S
 }
 
 export function resolvePlayerHorizontal(x: number, z: number, feet: number) {
+  for (const bridge of BRIDGES) {
+    const dx = Math.abs(x - bridge.x), dz = z - bridge.z, deck = bridgeHeight(x, bridge)
+    if (dx < bridge.halfX && feet >= deck - .3 && feet < deck + .7 && Math.abs(dz) > bridge.halfZ - PLAYER_RADIUS && Math.abs(dz) < bridge.halfZ + .18 + PLAYER_RADIUS) {
+      const inside = Math.abs(dz) < bridge.halfZ + .09
+      z = bridge.z + Math.sign(dz) * (inside ? bridge.halfZ - PLAYER_RADIUS : bridge.halfZ + .18 + PLAYER_RADIUS)
+    }
+  }
   const half = BOARD_HALF + PLAYER_RADIUS
   for (let iteration = 0; iteration < 3; iteration++) {
     if (feet < BOARD_HEIGHT - SKIN && Math.abs(x) < half && Math.abs(z) < half) {
@@ -94,7 +109,7 @@ export function stepPlayerBody(body: PlayerBody, moveX: number, moveZ: number, d
   const next = resolvePlayerHorizontal(body.x + moveX, body.z + moveZ, nextY)
   surface = getSupportSurface(next.x, next.z, previousY + STEP_HEIGHT)
   if (body.velocityY <= 0 && previousY >= surface.height - SKIN && nextY <= surface.height) nextY = surface.height
-  body.x = next.x; body.z = next.z; body.y = Math.max(0, nextY)
+  body.x = next.x; body.z = next.z; body.y = Math.max(terrainHeight(next.x, next.z), nextY)
   body.grounded = body.velocityY <= 0 && Math.abs(body.y - surface.height) <= SKIN
   if (body.grounded) body.velocityY = 0
 }

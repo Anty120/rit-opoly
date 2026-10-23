@@ -1,11 +1,13 @@
 import { BOARD_HALF, islandRadius, randomGenerator, rocks } from '../world.ts'
+import { ISLAND_BOUNDS, isRiverBank, BRIDGES } from '../worldConfig.ts'
 
 export interface GrassPatchData { id: string; x: number; z: number; count: number; matrices: Float32Array; colors: Float32Array }
 
 export function createGrassLayout(): GrassPatchData[] {
   const patches: GrassPatchData[] = []
   const candidates = 8 * 8 * 145
-  for (let tileX = 0; tileX < 7; tileX++) for (let tileZ = 0; tileZ < 7; tileZ++) {
+  const extra = Math.ceil((ISLAND_BOUNDS - 28) / 8)
+  for (let tileX = -extra; tileX < 7 + extra; tileX++) for (let tileZ = -extra; tileZ < 7 + extra; tileZ++) {
     const centerX = -24 + tileX * 8, centerZ = -24 + tileZ * 8
     const random = randomGenerator(28 + tileX * 101 + tileZ * 7001)
     const matrices = new Float32Array(candidates * 16), colors = new Float32Array(candidates * 3)
@@ -15,6 +17,7 @@ export function createGrassLayout(): GrassPatchData[] {
       const x = centerX + localX, z = centerZ + localZ
       if (Math.hypot(x, z) > islandRadius(Math.atan2(z, x)) - .15) continue
       if (Math.abs(x) < BOARD_HALF + .1 && Math.abs(z) < BOARD_HALF + .1) continue
+      if (isRiverBank(x, z) || BRIDGES.some(b => Math.abs(x - b.x) < b.halfX + .1 && Math.abs(z - b.z) < b.halfZ + .1)) continue
       if (rocks.some(rock => Math.hypot(x - rock.x, z - rock.z) < rock.size * .76)) continue
       const patch = .5 + .5 * Math.sin(x * .35 + Math.sin(z * .25) * 1.6)
       const angle = -.65 + Math.sin(x * .16 + z * .22) * .85 + (random() - .5) * 1.8

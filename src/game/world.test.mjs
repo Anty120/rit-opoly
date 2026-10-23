@@ -10,6 +10,7 @@ import './playerPhysics.test.mjs'
 import '../dice/dice.test.mjs'
 import '../dice/dicePhysics.test.mjs'
 import '../music/audioLevel.test.mjs'
+import './water/bridge.test.mjs'
 
 const constrainPlayer = (x, z) => resolvePlayerHorizontal(x, z, 0)
 
@@ -70,7 +71,7 @@ test('grass detail decreases smoothly with distance and draw counts stay bounded
   let previous = 1
   for (let distance = 0; distance <= 60; distance += .25) {
     const density = grassDensityAtDistance(distance)
-    assert.ok(density <= previous && density > 0)
+    assert.ok(density <= previous && density >= 0)
     assert.ok(grassDrawCount(9000, distance, 1) <= 9000)
     previous = density
   }
@@ -101,7 +102,7 @@ test('patch draw limits keep every blade needed by continuous per-blade density'
 
 test('grass patches are deterministic and exclude the board, rocks, and island edge', () => {
   const patches = createGrassLayout()
-  assert.ok(patches.length > 20 && patches.length <= 49)
+  assert.ok(patches.length > 49 && patches.length <= 169)
   let total = 0
   for (const patch of patches) {
     total += patch.count
@@ -114,7 +115,7 @@ test('grass patches are deterministic and exclude the board, rocks, and island e
       assert.ok(patch.matrices[i * 16 + 5] > 0)
     }
   }
-  assert.ok(total > 250000 && total < 330000)
+  assert.ok(total > 600000 && total < 950000)
   const repeat = createGrassLayout()
   assert.deepEqual(patches[0].matrices, repeat[0].matrices)
 })

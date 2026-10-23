@@ -29,7 +29,8 @@ export const GrassPatch = memo(function GrassPatch({ patch, geometry, material, 
     elapsed.current = 0
     const distance = grassDistanceToPatch(camera.position.x, camera.position.z, patch.x, patch.z)
     // Include a guard band for blades fading in at the edge of the draw prefix.
-    mesh.current.count = Math.min(patch.count, grassDrawCount(patch.count, distance, density) + Math.ceil(patch.count * .02))
+    mesh.current.visible = distance < 36
+    mesh.current.count = distance >= 36 ? 0 : Math.min(patch.count, grassDrawCount(patch.count, distance, density) + Math.ceil(patch.count * .02))
   })
   return <instancedMesh ref={mesh} args={[patchGeometry, material, patch.count]} position={[patch.x, 0, patch.z]}
     instanceMatrix={matrices} instanceColor={colors} receiveShadow={shadows} dispose={null} />

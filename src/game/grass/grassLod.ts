@@ -4,7 +4,7 @@ function smoothstep(min: number, max: number, value: number) {
 }
 
 export function grassDensityAtDistance(distance: number) {
-  return (1 - smoothstep(14, 26, distance) * .65) * (1 - smoothstep(26, 45, distance) * .66)
+  return (1 - smoothstep(14, 26, distance) * .65) * (1 - smoothstep(26, 45, distance) * .66) * (1 - smoothstep(22, 36, distance))
 }
 
 export function grassDrawCount(capacity: number, distance: number, density: number) {

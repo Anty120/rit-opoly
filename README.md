@@ -43,6 +43,12 @@ Run `npm run build` for TypeScript checking and a production build. Run `npm tes
 
 The board uses maximum supported anisotropic filtering and a mild mip bias to retain detail at oblique angles. Automatic quality prioritizes movement performance and can lower render scale to 65% under sustained load, with a cooldown between resolution changes and slower recovery to prevent oscillation. The original PNG still sets the upper limit on artwork detail.
 
+## Island, river and grass distance coverage
+
+The island is roughly 88 units across. `src/game/worldConfig.ts` owns its outline, winding river, channel depth and bridge dimensions. The river and waterfall use two simple animated meshes. The arch bridge has a curved deck and parapets; movement samples the same 24-segment height profile as its geometry, so players can walk over it from either bank. Multiplayer validation accepts the expanded bounds and shallow river bed.
+
+Close-up grass retains the original five-vertex mesh, density, material and wind. `src/game/grass/DistantGrass.tsx` adds a separate opaque mesh layer using one single-triangle blade for every four detailed blades, with the same palette and simpler sway. It blends in over 16–28 units while detailed grass fades out over 22–36 units. Roots are fixed in the world, and the blend is evaluated per blade. There are no camera-facing cards, alpha textures or per-frame instance-buffer uploads. The expanded layout preserves the original per-square-metre density and patch seeds.
+
 ## Multiplayer
 
 Requires Node 22.6+ (tested with 22.15). `npm run dev` starts both Vite on port 5173 and Colyseus on port 2567. The browser uses Vite's `/multiplayer` HTTP/WebSocket proxy, so both clients can use the same frontend address.

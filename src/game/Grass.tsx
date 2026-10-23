@@ -8,6 +8,7 @@ import { createGrassLayout } from './grass/grassLayout'
 import { createGrassMaterial } from './grass/grassMaterial'
 import { GrassPatch } from './grass/GrassPatch'
 import { createWindField } from './grass/windField'
+import { DistantGrass } from './grass/DistantGrass'
 
 export const Grass = memo(function Grass({ player, settings }: { player: PlayerPosition; settings: GameSettings }) {
   const patches = useMemo(createGrassLayout, [])
@@ -32,6 +33,6 @@ export const Grass = memo(function Grass({ player, settings }: { player: PlayerP
     const heading = .49 + Math.sin(time * .21) * .16 + Math.sin(time * .53) * .055
     uniforms.direction.value.set(Math.cos(heading), Math.sin(heading))
   })
-  return <group>{patches.map(patch => <GrassPatch key={patch.id} patch={patch} geometry={geometry} material={material}
+  return <group><DistantGrass patches={patches} uniforms={uniforms} color={settings.grassColor} />{patches.map(patch => <GrassPatch key={patch.id} patch={patch} geometry={geometry} material={material}
     density={settings.grassDensity} shadows={settings.grassShadows} />)}</group>
 })

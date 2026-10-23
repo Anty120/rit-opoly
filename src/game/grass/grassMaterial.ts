@@ -33,7 +33,7 @@ export function createGrassMaterial(uniforms: GrassUniforms) {
       vGrassHeight = position.y;
       vec3 root = (modelMatrix * instanceMatrix * vec4(0., 0., 0., 1.)).xyz;
       float distanceToCamera = length(root.xz - cameraPosition.xz);
-      float lodDensity = (1. - smoothstep(14., 26., distanceToCamera) * .65) * (1. - smoothstep(26., 45., distanceToCamera) * .66);
+      float lodDensity = (1. - smoothstep(14., 26., distanceToCamera) * .65) * (1. - smoothstep(26., 45., distanceToCamera) * .66) * (1. - smoothstep(22., 36., distanceToCamera));
       float presence = smoothstep(grassRank - .02, grassRank + .02, lodDensity * uDensity);
       // Fully thinned blades have no visible triangles. Skip their wind texture,
       // trigonometry, lighting and projection work instead of animating them.
