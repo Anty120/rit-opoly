@@ -1,4 +1,5 @@
 import { defineTypes, MapSchema, Schema } from '@colyseus/schema'
+import { createChessState } from './chess.ts'
 
 export class NetworkPlayer extends Schema {
   declare name: string
@@ -30,8 +31,9 @@ export class NetworkDice extends Schema {
 defineTypes(NetworkDice, { id: 'uint32', first: 'uint8', second: 'uint8', rollerId: 'string', rollerName: 'string' })
 
 export class MeadowState extends Schema {
+  declare chess: string
   declare players: MapSchema<NetworkPlayer>
   declare dice: NetworkDice
-  constructor() { super(); this.players = new MapSchema<NetworkPlayer>(); this.dice = new NetworkDice() }
+  constructor() { super(); this.players = new MapSchema<NetworkPlayer>(); this.dice = new NetworkDice(); this.chess = JSON.stringify(createChessState()) }
 }
-defineTypes(MeadowState, { players: { map: NetworkPlayer }, dice: NetworkDice })
+defineTypes(MeadowState, { players: { map: NetworkPlayer }, dice: NetworkDice, chess: 'string' })

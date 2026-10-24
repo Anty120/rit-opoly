@@ -8,8 +8,9 @@ export interface GameSettings {
   grassSwaySpeed: number
   grassColor: string
   grassShadows: boolean
+  grassEnabled: boolean
+  distanceResolution: boolean
   renderScale: number
-  adaptiveQuality: boolean
   visualizerScale: number
   visualizerEnabled: boolean
 }
@@ -17,8 +18,9 @@ export interface GameSettings {
 export const DEFAULT_SETTINGS: GameSettings = {
   walkSpeed: 6, runSpeed: 10, jumpStrength: 8.5,
   grassDensity: .85, grassHeight: 1, grassWind: 1, grassSwaySpeed: 1,
-  grassColor: '#a5dcc5', grassShadows: true,
-  renderScale: 1, adaptiveQuality: true,
+  grassColor: '#a5dcc5', grassShadows: true, grassEnabled: true,
+  distanceResolution: true,
+  renderScale: 1,
   visualizerScale: 2,
   visualizerEnabled: true,
 }
@@ -27,7 +29,7 @@ export const SETTING_RANGES = {
   walkSpeed: [2, 12, .5], runSpeed: [4, 18, .5], jumpStrength: [3, 10, .5],
   grassDensity: [.25, 1, .05], grassHeight: [.4, 1.5, .05], grassWind: [0, 2, .1],
   grassSwaySpeed: [.25, 2.5, .05],
-  renderScale: [.65, 1.5, .05],
+  renderScale: [1, 1.5, .05],
   visualizerScale: [.5, 3, .1],
 } as const
 
@@ -46,14 +48,14 @@ export function sanitizeSettings(value: unknown): GameSettings {
     }
   }
   if (typeof input.grassColor === 'string' && /^#[0-9a-f]{6}$/i.test(input.grassColor)) settings.grassColor = input.grassColor
-  for (const key of ['grassShadows', 'adaptiveQuality', 'visualizerEnabled'] as const) {
+  for (const key of ['grassShadows', 'grassEnabled', 'distanceResolution', 'visualizerEnabled'] as const) {
     if (typeof input[key] === 'boolean') settings[key] = input[key]
   }
   settings.runSpeed = Math.max(settings.walkSpeed, settings.runSpeed)
   return settings
 }
 
-export const SETTINGS_VERSION = 2
+export const SETTINGS_VERSION = 4
 
 export function restoreSavedSettings(value: unknown): GameSettings {
   // Upgrade the old default jump without resetting custom movement/grass preferences.

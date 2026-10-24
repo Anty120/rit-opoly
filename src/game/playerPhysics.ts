@@ -1,7 +1,7 @@
 import { DodecahedronGeometry, Euler, Matrix4, Plane, Quaternion, Triangle, Vector3 } from 'three'
 import { BOARD_HALF, BOARD_HEIGHT, islandRadius, PLAYER_HEIGHT, PLAYER_RADIUS, rocks } from './world.ts'
 import { rockTransform } from './rockTransform.ts'
-import { BRIDGES, bridgeHeight, terrainHeight } from './worldConfig.ts'
+import { BRIDGES, CHESS_SITE, CHESS_SURFACE_HEIGHT, bridgeHeight, terrainHeight } from './worldConfig.ts'
 
 export const GRAVITY = 16
 const SKIN = .002
@@ -41,6 +41,12 @@ function heightOnTriangle(triangle: Triangle, x: number, z: number) {
 export function getSupportSurface(x: number, z: number, maxHeight = Infinity): SupportSurface {
   const ground = terrainHeight(x, z)
   let result: SupportSurface = { height: ground, visualHeight: ground, kind: 'ground' }
+  if (Math.abs(x-CHESS_SITE.x) <= CHESS_SITE.halfSize && Math.abs(z-CHESS_SITE.z) <= CHESS_SITE.halfSize && CHESS_SITE.height <= maxHeight) {
+    result = { height: CHESS_SITE.height, visualHeight: CHESS_SITE.height, kind: 'board' }
+    if (Math.abs(x-CHESS_SITE.x) <= 4.675 && Math.abs(z-CHESS_SITE.z) <= 4.675 && CHESS_SURFACE_HEIGHT <= maxHeight) {
+      result = { height: CHESS_SURFACE_HEIGHT, visualHeight: CHESS_SURFACE_HEIGHT, kind: 'board' }
+    }
+  }
   for (const bridge of BRIDGES) {
     const height = bridgeHeight(x, bridge)
     if (Math.abs(x - bridge.x) <= bridge.halfX && Math.abs(z - bridge.z) <= bridge.halfZ && height <= maxHeight) {
@@ -72,6 +78,13 @@ export function resolvePlayerHorizontal(x: number, z: number, feet: number) {
     }
   }
   const half = BOARD_HALF + PLAYER_RADIUS
+  if (feet < CHESS_SITE.height - SKIN) {
+    const dx = x-CHESS_SITE.x, dz = z-CHESS_SITE.z, edge = CHESS_SITE.halfSize + PLAYER_RADIUS
+    if (Math.abs(dx) < edge && Math.abs(dz) < edge) {
+      if (Math.abs(dx) > Math.abs(dz)) x = CHESS_SITE.x + (Math.sign(dx)||1)*edge
+      else z = CHESS_SITE.z + (Math.sign(dz)||1)*edge
+    }
+  }
   for (let iteration = 0; iteration < 3; iteration++) {
     if (feet < BOARD_HEIGHT - SKIN && Math.abs(x) < half && Math.abs(z) < half) {
       if (half - Math.abs(x) < half - Math.abs(z)) x = (Math.sign(x) || 1) * half

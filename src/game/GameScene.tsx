@@ -21,12 +21,17 @@ import type { DiceController } from '../dice/useDice'
 import { Dice } from '../dice/Dice'
 import { River } from './water/River'
 import { Bridges } from './water/Bridges'
+import { ChessBoard } from '../chess/ChessBoard'
+import { ChessCamera } from '../chess/ChessCamera'
+import type { ChessController } from '../chess/useChess'
+import { DistanceResolution } from './DistanceResolution'
 
-export function GameScene({ reset, input, settings, onReset, paused, multiplayer, music, dice }: {
+export function GameScene({ reset, input, settings, onReset, paused, multiplayer, music, dice, chess }: {
   reset: number; input: PlayerInput; settings: GameSettings; onReset: () => void; paused: boolean
   multiplayer: MultiplayerSession
   music: MusicAudio
   dice: DiceController
+  chess: ChessController
 }) {
   const player = useRef(new Vector3(...SPAWN))
   const orbit = useRef({ ...DEFAULT_CAMERA_ORBIT })
@@ -36,14 +41,16 @@ export function GameScene({ reset, input, settings, onReset, paused, multiplayer
     <Island />
     <River />
     <Bridges />
-    <Grass player={player} settings={settings} />
+    {settings.grassEnabled && <Grass player={player} settings={settings} />}
     <Board />
+    <ChessBoard chess={chess} />
     <Dice dice={dice} />
     <Rocks />
     <Flowers />
     <MusicVisualizer music={music} scale={settings.visualizerScale} enabled={settings.visualizerEnabled} />
     <Player position={player} input={input} orbit={orbit} reset={reset} settings={settings} paused={paused} multiplayer={multiplayer} />
     <RemotePlayers multiplayer={multiplayer} />
-    <FollowCamera position={player} orbit={orbit} reset={reset} spawn={multiplayer.session?.spawn} />
+    {chess.focused ? <ChessCamera /> : <FollowCamera position={player} orbit={orbit} reset={reset} spawn={multiplayer.session?.spawn} />}
+    <DistanceResolution player={player} settings={settings} focused={chess.focused} />
   </>
 }

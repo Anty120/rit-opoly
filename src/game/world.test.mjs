@@ -2,16 +2,40 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { islandRadius, islandGeometry, BOARD_HALF, PLAYER_RADIUS, rocks, SPAWN } from './world.ts'
 import { resolvePlayerHorizontal } from './playerPhysics.ts'
-import { DEFAULT_SETTINGS, sanitizeSettings } from '../settings/gameSettings.ts'
+import { DEFAULT_SETTINGS, sanitizeSettings, restoreSavedSettings } from '../settings/gameSettings.ts'
 import { createGrassLayout } from './grass/grassLayout.ts'
 import { createGrassGeometry } from './grass/grassGeometry.ts'
 import { createDistantBatches } from './grass/distantGeometry.ts'
+import { isGameSite } from './worldConfig.ts'
 import { grassDensityAtDistance, grassDistanceToPatch, grassDrawCount } from './grass/grassLod.ts'
 import './playerPhysics.test.mjs'
 import '../dice/dice.test.mjs'
 import '../dice/dicePhysics.test.mjs'
 import '../music/audioLevel.test.mjs'
 import './water/bridge.test.mjs'
+import '../../shared/chess.test.mjs'
+import { distanceToBoard, resolutionLimits, nextResolution } from './resolutionPolicy.ts'
+
+test('distance resolution protects every board and focus mode while reducing distant GPU load', () => {
+  for (const [x,z] of [[0,0],[32,0],[0,15],[32,13]]) {
+    assert.ok(resolutionLimits(distanceToBoard(x,z),1).minimum >= .9)
+  }
+  let previous = 1
+  for (let distance=0;distance<=60;distance+=.25) {
+    const limits=resolutionLimits(distance,1)
+    assert.ok(limits.minimum<=limits.maximum && limits.maximum<=previous)
+    assert.ok(nextResolution(.6,30,limits.minimum,limits.maximum)>=limits.minimum)
+    previous=limits.maximum
+  }
+  assert.deepEqual(resolutionLimits(100,1,true),{minimum:.9,maximum:1})
+  const far=resolutionLimits(50,1)
+  assert.ok(Math.abs(far.minimum-.6)<1e-8)
+  assert.equal(far.maximum,.75)
+  assert.equal(nextResolution(1,35,.9,1),.95)
+  assert.equal(nextResolution(.9,35,.9,1),.9)
+  assert.equal(nextResolution(.7,55,.6,.75),.7)
+  assert.equal(nextResolution(.7,60,.6,.75),.725)
+})
 
 const constrainPlayer = (x, z) => resolvePlayerHorizontal(x, z, 0)
 
@@ -64,7 +88,13 @@ test('settings are validated and faster defaults are restored safely', () => {
   assert.equal(settings.grassHeight, DEFAULT_SETTINGS.grassHeight)
   assert.equal(settings.grassColor, DEFAULT_SETTINGS.grassColor)
   assert.equal(settings.grassShadows, true)
-  assert.equal(settings.adaptiveQuality, false)
+  assert.equal(settings.grassEnabled, true)
+  assert.equal(settings.distanceResolution, true)
+  assert.equal(restoreSavedSettings({grassEnabled:false,distanceResolution:false}).grassEnabled,false)
+  assert.equal(restoreSavedSettings({grassEnabled:false,distanceResolution:false}).distanceResolution,false)
+  assert.equal(settings.renderScale,1)
+  assert.equal(restoreSavedSettings({settingsVersion:2,renderScale:.65,adaptiveQuality:true,walkSpeed:9}).renderScale,1)
+  assert.equal(restoreSavedSettings({settingsVersion:2,renderScale:.65,adaptiveQuality:true,walkSpeed:9}).walkSpeed,9)
   assert.equal(settings.grassSwaySpeed, DEFAULT_SETTINGS.grassSwaySpeed)
 })
 
@@ -112,6 +142,7 @@ test('grass patches are deterministic and exclude the board, rocks, and island e
       const x = patch.x + patch.matrices[i * 16 + 12], z = patch.z + patch.matrices[i * 16 + 14]
       assert.ok(Math.hypot(x, z) <= islandRadius(Math.atan2(z, x)) - .1499)
       assert.ok(Math.abs(x) >= BOARD_HALF + .0999 || Math.abs(z) >= BOARD_HALF + .0999)
+      assert.ok(!isGameSite(x,z,.0999),'game platforms and capture trays remain free of grass')
       assert.ok(rocks.every(rock => Math.hypot(x - rock.x, z - rock.z) >= rock.size * .76 - .0001))
       assert.ok(patch.matrices[i * 16 + 5] > 0)
     }

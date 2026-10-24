@@ -7,6 +7,8 @@ import type { PlayerIdentity, PlayerPose, PlayerSnapshot } from '../../shared/pr
 import type { ConnectionStatus, MultiplayerSession, RoomSession } from './types'
 import { INITIAL_DICE } from '../../shared/dice'
 import type { DiceRoll } from '../../shared/dice'
+import { createChessState } from '../../shared/chess'
+import type { ChessMove, ChessState } from '../../shared/chess'
 
 type MeadowConnection = Room<MeadowState>
 
@@ -16,6 +18,9 @@ export function useMultiplayer(): MultiplayerSession {
   const [roster, setRoster] = useState<PlayerIdentity[]>([])
   const [error, setError] = useState('')
   const [dice, setDice] = useState<DiceRoll>(INITIAL_DICE)
+  const [chess, setChess] = useState<ChessState>(createChessState)
+  const [chessError, setChessError] = useState('')
+  const chessSnapshot = useRef('')
   const room = useRef<MeadowConnection | null>(null)
   const targets = useRef(new Map<string, PlayerSnapshot>())
   const generation = useRef(0), ready = useRef(false)
@@ -27,6 +32,7 @@ export function useMultiplayer(): MultiplayerSession {
     targets.current.clear(); rosterKey.current = ''
     setSession(null); setRoster([]); setStatus('offline'); setError('')
     setDice(INITIAL_DICE)
+    chessSnapshot.current = ''; setChessError(''); setChess(createChessState())
     if (previous) void previous.leave(true).catch(() => {}).finally(() => previous.removeAllListeners())
     const url = new URL(window.location.href); url.searchParams.delete('room'); window.history.replaceState(null, '', url)
   }, [])
@@ -48,10 +54,16 @@ export function useMultiplayer(): MultiplayerSession {
       const joined = mode === 'create' ? await client.create<MeadowState>(ROOM_TYPE, options) : await client.joinById<MeadowState>(roomId.trim(), options)
       if (request !== generation.current) { await joined.leave(true); return }
       room.current = joined
+      chessSnapshot.current = ''; setChessError(''); setChess(createChessState())
+      joined.onMessage('chessRejected', (message: string) => setChessError(message))
       setDice(INITIAL_DICE)
       joined.reconnection.minUptime = 0
       const consume = (state: MeadowState) => {
         if (room.current !== joined || !state?.players) return
+        if (state.chess && state.chess !== chessSnapshot.current) {
+          chessSnapshot.current = state.chess
+          setChess(JSON.parse(state.chess)); setChessError('')
+        }
         if (state.dice) setDice(previous => previous.id === state.dice.id ? previous : {
           id: state.dice.id, first: state.dice.first, second: state.dice.second,
           rollerId: state.dice.rollerId, rollerName: state.dice.rollerName,
@@ -104,5 +116,13 @@ export function useMultiplayer(): MultiplayerSession {
     if (!ready.current || !room.current?.connection.isOpen) return false
     room.current.send('rollDice'); return true
   }, [])
-  return { status, session, roster, targets, error, dice, rollDice, connect, leave, sendPose, respawn }
+  const moveChess = useCallback((move: ChessMove) => {
+    if (!ready.current || !room.current?.connection.isOpen) return false
+    setChessError(''); room.current.send('chessMove', move); return true
+  }, [])
+  const resetChess = useCallback((revision: number) => {
+    if (!ready.current || !room.current?.connection.isOpen) return false
+    setChessError(''); room.current.send('chessReset', revision); return true
+  }, [])
+  return { status, session, roster, targets, error, dice, rollDice, chess, chessError, moveChess, resetChess, connect, leave, sendPose, respawn }
 }

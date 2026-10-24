@@ -19,6 +19,27 @@ try {
   const guest = await client.joinById(host.roomId, { name: 'Guest' }); rooms.push(guest)
   await waitFor(() => host.state?.players?.size === 2 && guest.state?.players?.size === 2, 'two players synchronized')
   const hostId = host.sessionId, guestId = guest.sessionId
+  const chessRejected = []
+  host.onMessage('chessRejected',message => chessRejected.push(message))
+  guest.onMessage('chessRejected',message => chessRejected.push(message))
+  const chessMove = async (room,from,to) => {
+    const revision = JSON.parse(host.state.chess).revision
+    room.send('chessMove',{revision,from,to})
+    await waitFor(() => JSON.parse(host.state.chess).revision === revision+1 && host.state.chess === guest.state.chess,'chess move replicated')
+  }
+  await chessMove(host,12,28) // e2-e4
+  const wrongTurnPosition=host.state.chess
+  host.send('chessMove',{revision:1,from:11,to:27})
+  await waitFor(() => chessRejected.length===1,'wrong-color move rejected')
+  assert.equal(host.state.chess,wrongTurnPosition)
+  await chessMove(guest,52,36) // e7-e5
+  await chessMove(host,11,27) // d2-d4
+  await chessMove(guest,36,27) // exd4
+  assert.ok(JSON.parse(host.state.chess).pieces.some(p => p.color === 'white' && p.square === -1 && p.captured === 0))
+  const boardBeforeInvalidMove = host.state.chess
+  host.send('chessMove',{revision:0,from:48,to:40})
+  await waitFor(() => chessRejected.length === 2,'stale chess request rejected')
+  assert.equal(host.state.chess,boardBeforeInvalidMove)
   const start = { ...host.state.players.get(hostId).toJSON() }
   assert.notEqual(hostId, guestId)
   assert.notEqual(start.color, guest.state.players.get(guestId).color)
@@ -52,6 +73,20 @@ try {
   const late = await client.joinById(host.roomId, { name: 'Late guest' }); rooms.push(late)
   await waitFor(() => late.state?.dice?.id === 2, 'late join receives last dice outcome')
   assert.deepEqual(late.state.dice.toJSON(), host.state.dice.toJSON())
+  assert.equal(late.state.chess,host.state.chess,'late join includes captures and board position')
+  guest.send('chessReset',JSON.parse(guest.state.chess).revision)
+  await waitFor(() => JSON.parse(host.state.chess).revision === 5 && host.state.chess === guest.state.chess,'chess reset replicated')
+  assert.ok(JSON.parse(host.state.chess).pieces.every(p => p.square >= 0 && !p.moved))
+  assert.equal(JSON.parse(host.state.chess).turn,'white')
+  for (const [from,to] of [[13,21],[52,36],[14,30],[59,31]]) await chessMove(host,from,to)
+  assert.equal(JSON.parse(host.state.chess).turn,'white')
+  const {chessStatus}=await import('../shared/chess.ts')
+  assert.deepEqual(chessStatus(JSON.parse(host.state.chess)),{kind:'checkmate',winner:'black'})
+  await waitFor(() => late.state.chess===host.state.chess,'checkmate synchronized to spectators')
+  const matePosition=host.state.chess
+  guest.send('chessMove',{revision:9,from:8,to:16})
+  await waitFor(() => chessRejected.length===3,'moves after checkmate rejected')
+  assert.equal(host.state.chess,matePosition)
   await late.leave(true)
   await waitFor(() => host.state.players.size === 2, 'late guest removed')
   let dropped = false, reconnected = false
@@ -68,6 +103,7 @@ try {
   await waitFor(() => isolated.state?.players?.size === 1, 'separate room initialized')
   assert.equal(isolated.state.players.has(hostId), false)
   assert.equal(isolated.state.dice.id, 0, 'rolls stay within their room')
+  assert.equal(JSON.parse(isolated.state.chess).revision,0,'chess positions stay within their room')
   await assert.rejects(() => client.joinById('missing-room', { name: 'Nobody' }))
   await guest.leave(true)
   await waitFor(() => host.state.players.size === 1, 'leaving removes remote player')

@@ -29,6 +29,8 @@ export function SettingsMenu({ settings, onChange, onRestore, stats, open, onOpe
         <SettingSlider setting="jumpStrength" label="Jump strength" settings={settings} onChange={onChange} />
       </fieldset>
       <fieldset><legend>Grass</legend>
+        <SettingToggle label="Show grass" checked={settings.grassEnabled} onChange={value => onChange('grassEnabled', value)} />
+        <p className="settings-hint">Turn off to keep just the green ground and reduce GPU work.</p>
         <SettingSlider setting="grassDensity" label="Density" settings={settings} onChange={onChange} percent />
         <SettingSlider setting="grassHeight" label="Height" settings={settings} onChange={onChange} percent />
         <SettingSlider setting="grassWind" label="Sway amount" settings={settings} onChange={onChange} percent />
@@ -41,9 +43,9 @@ export function SettingsMenu({ settings, onChange, onRestore, stats, open, onOpe
         <SettingSlider setting="visualizerScale" label="Speaker scale" settings={settings} onChange={onChange} percent />
       </fieldset>
       <fieldset><legend>Performance</legend>
-        <SettingToggle label="Auto-adjust render quality" checked={settings.adaptiveQuality} onChange={value => onChange('adaptiveQuality', value)} />
-        <SettingSlider setting="renderScale" label={settings.adaptiveQuality ? 'Maximum render scale' : 'Render scale'} settings={settings} onChange={onChange} percent />
-        <p className="settings-hint">Auto quality prioritizes smooth movement and can lower resolution under sustained load. Lower grass density for more FPS.</p>
+        <SettingToggle label="Distance-based resolution" checked={settings.distanceResolution} onChange={value => onChange('distanceResolution', value)} />
+        <SettingSlider setting="renderScale" label="Maximum resolution" settings={settings} onChange={onChange} percent />
+        <p className="settings-hint">100% is native resolution. Distance-based resolution lowers GPU load away from boards, with a 90% minimum nearby. Turn it off to keep the selected resolution everywhere.</p>
       </fieldset>
       <button className="restore-button" onClick={onRestore}>Restore defaults</button>
     </section>}

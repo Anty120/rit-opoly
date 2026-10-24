@@ -3,10 +3,23 @@ import { test } from 'node:test'
 import { BOARD_HALF, BOARD_HEIGHT, PLAYER_RADIUS, rocks } from './world.ts'
 import { DEFAULT_SETTINGS, restoreSavedSettings } from '../settings/gameSettings.ts'
 import { getSupportSurface, resolvePlayerHorizontal, stepPlayerBody } from './playerPhysics.ts'
+import { CHESS_SITE, CHESS_SURFACE_HEIGHT } from './worldConfig.ts'
 
 const createBody = (x, z, y = 0) => ({ x, y, z, velocityY: 0, grounded: y === 0 })
 const step = (body, x = 0, z = 0) => stepPlayerBody(body, x, z, 1 / 60)
 const settle = body => { for (let i = 0; i < 240; i++) step(body) }
+
+test('chess platform blocks walking through its edge and supports jumping onto it', () => {
+  const body = createBody(CHESS_SITE.x-CHESS_SITE.halfSize-.8,CHESS_SITE.z)
+  for (let i=0;i<30;i++) step(body,.1,0)
+  assert.ok(body.x <= CHESS_SITE.x-CHESS_SITE.halfSize-PLAYER_RADIUS+.001)
+  body.velocityY = DEFAULT_SETTINGS.jumpStrength; body.grounded = false
+  for (let i=0;i<30;i++) step(body,.1,0)
+  settle(body)
+  assert.ok(body.x > CHESS_SITE.x-CHESS_SITE.halfSize)
+  assert.equal(body.y,CHESS_SURFACE_HEIGHT)
+  assert.ok(body.grounded)
+})
 
 test('board sides block walking, but can be cleared by jumping', () => {
   const body = createBody(0, 8)

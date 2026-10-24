@@ -5,15 +5,17 @@ export const RIVER = { x: 18, halfWidth: 2.2, bankWidth: 3.5, depth: .55, waterY
 
 export interface GameSite {
   id: string
-  kind: 'monopoly' | 'reserved'
+  kind: 'monopoly' | 'reserved' | 'chess'
   x: number
   z: number
   halfSize: number
   height: number
 }
+export const CHESS_SITE: GameSite = { id: 'chess', kind: 'chess', x: 32, z: 0, halfSize: 6.7, height: .24 }
+export const CHESS_SURFACE_HEIGHT = CHESS_SITE.height + .045
 export const GAME_SITES: readonly GameSite[] = [
   { id: 'monopoly', kind: 'monopoly', x: 0, z: 0, halfSize: 8, height: .602 },
-  { id: 'future-game', kind: 'reserved', x: 32, z: 0, halfSize: 6, height: 0 },
+  CHESS_SITE,
 ]
 export const PRIMARY_BOARD = GAME_SITES[0]
 

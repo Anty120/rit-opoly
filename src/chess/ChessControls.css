@@ -1,0 +1,11 @@
+.game.is-chess .dice-controls,.game.is-chess .touch-controls,.game.is-chess .music-controls,.game.is-chess .controls,.game.is-chess .corner-note { display:none; }
+.chess-controls { position:absolute; top:225px; right:35px; z-index:3; color:#354c48; }
+.chess-controls button,.chess-controls select { border:1px solid #fff9e7aa; border-radius:12px; padding:10px 15px; background:#fff9edee; color:inherit; cursor:pointer; font:inherit; font-size:12px; }
+.chess-controls.is-focused { width:260px; padding:18px; border-radius:18px; border:1px solid #fff9e7aa; background:#fff9edf2; display:grid; gap:12px; }
+.chess-controls p { margin:0; font-size:12px; line-height:1.5; }
+.chess-controls .chess-turn { font-weight:700; padding:8px 10px; border-radius:9px; background:#e4ece0; }
+.chess-controls .chess-turn.is-winner { background:#f5d789; color:#5a4216; }
+.chess-controls label { display:grid; gap:6px; font-size:12px; }
+.chess-controls span { font-size:10px; line-height:1.4; opacity:.75; }
+@media(max-width:700px) { .chess-controls { right:18px; top:195px; } .chess-controls.is-focused { top:auto; bottom:18px; left:18px; right:18px; width:auto; padding:12px; gap:6px; } .chess-controls.is-focused p { font-size:11px; } }
+@media(max-width:700px) { .chess-controls.is-focused { max-height:34svh; overflow:auto; } .game.is-chess .masthead,.game.is-chess .world-label,.game.is-chess .home-button,.game.is-chess .settings-menu,.game.is-chess .multiplayer-button { display:none; } }

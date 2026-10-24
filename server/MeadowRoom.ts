@@ -5,6 +5,7 @@ import { isPlayerPose, MAX_PLAYERS, PLAYER_COLORS, playerName, playerSpawn } fro
 import { islandRadius } from '../src/game/world.ts'
 import { randomInt } from 'node:crypto'
 import { DICE_REQUEST_COOLDOWN_MS } from '../shared/dice.ts'
+import { applyChessMove, createChessState } from '../shared/chess.ts'
 
 export class MeadowRoom extends Room<{ state: MeadowState }> {
   maxClients = MAX_PLAYERS
@@ -15,6 +16,18 @@ export class MeadowRoom extends Room<{ state: MeadowState }> {
 
   onCreate() {
     this.setPatchRate(50)
+    this.onMessage('chessMove', (client, input: unknown) => {
+      if (!this.state.players.get(client.sessionId)?.connected) return
+      const next = applyChessMove(JSON.parse(this.state.chess), input)
+      if (next) this.state.chess = JSON.stringify(next)
+      else client.send('chessRejected', 'That position changed or the move is no longer available.')
+    })
+    this.onMessage('chessReset', (client, revision: unknown) => {
+      if (!this.state.players.get(client.sessionId)?.connected) return
+      const previous = JSON.parse(this.state.chess)
+      if (revision !== previous.revision) { client.send('chessRejected', 'The position changed. Try again.'); return }
+      this.state.chess = JSON.stringify({ ...createChessState(), revision: previous.revision + 1 })
+    })
     this.onMessage('rollDice', client => {
       const player = this.state.players.get(client.sessionId)
       if (!player || !player.connected || performance.now() < this.nextDiceRoll) return
