@@ -49,6 +49,8 @@ The island is roughly 88 units across. `src/game/worldConfig.ts` owns its outlin
 
 Close-up grass retains the original five-vertex mesh, density, material and wind. `src/game/grass/DistantGrass.tsx` adds a separate opaque mesh layer using one single-triangle blade for every four detailed blades, with the same palette and simpler sway. It blends in over 16–28 units while detailed grass fades out over 22–36 units. Roots are fixed in the world, and the blend is evaluated per blade. There are no camera-facing cards, alpha textures or per-frame instance-buffer uploads. The expanded layout preserves the original per-square-metre density and patch seeds.
 
+The distant layer uses 16-by-16-unit batches with ten floats per blade instead of nineteen, reducing draw calls and transform bandwidth. It shares the original grass palette and diffuse lighting. Detailed grass receives filtered shadows only in nearby batches; distant grass avoids those texture samples. Automatic quality starts at 80% render scale (or the selected maximum if lower), targets roughly 55 FPS with headroom above 50, and can adjust down to 65%. Manual quality retains the selected scale. Canvas and the performance monitor share the current scale so opening a menu does not reset it. At 1280-by-800 in the isolated local browser, the same movement route measured 53 FPS at full scale and 59 FPS with automatic quality; these are measured averages, not a frame-rate guarantee on other hardware.
+
 ## Multiplayer
 
 Requires Node 22.6+ (tested with 22.15). `npm run dev` starts both Vite on port 5173 and Colyseus on port 2567. The browser uses Vite's `/multiplayer` HTTP/WebSocket proxy, so both clients can use the same frontend address.

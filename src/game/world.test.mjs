@@ -5,6 +5,7 @@ import { resolvePlayerHorizontal } from './playerPhysics.ts'
 import { DEFAULT_SETTINGS, sanitizeSettings } from '../settings/gameSettings.ts'
 import { createGrassLayout } from './grass/grassLayout.ts'
 import { createGrassGeometry } from './grass/grassGeometry.ts'
+import { createDistantBatches } from './grass/distantGeometry.ts'
 import { grassDensityAtDistance, grassDistanceToPatch, grassDrawCount } from './grass/grassLod.ts'
 import './playerPhysics.test.mjs'
 import '../dice/dice.test.mjs'
@@ -116,6 +117,24 @@ test('grass patches are deterministic and exclude the board, rocks, and island e
     }
   }
   assert.ok(total > 600000 && total < 950000)
+  const distant = createDistantBatches(patches)
+  assert.equal(distant.reduce((sum, batch) => sum + batch.geometry.instanceCount, 0), patches.reduce((sum, patch) => sum + Math.ceil(patch.count / 4), 0), 'batching retains every distant blade')
+  assert.ok(distant.length < patches.length / 2, 'larger batches reduce draw submissions')
+  for (const batch of distant) {
+    const roots = batch.geometry.getAttribute('meadowRoot')
+    const transforms = batch.geometry.getAttribute('meadowTransform')
+    const colors = batch.geometry.getAttribute('meadowColor')
+    assert.equal(roots.count, transforms.count)
+    assert.equal(roots.count, colors.count)
+    assert.equal(roots.itemSize + transforms.itemSize + colors.itemSize, 10, 'compact distant instances use ten floats instead of nineteen')
+    for (let i = 0; i < roots.count; i++) {
+      const x = batch.x + roots.getX(i), z = batch.z + roots.getZ(i)
+      assert.ok(Math.abs(x) >= BOARD_HALF + .0999 || Math.abs(z) >= BOARD_HALF + .0999)
+      assert.ok(Math.hypot(roots.getX(i), roots.getY(i), roots.getZ(i)) + 1.3 < batch.geometry.boundingSphere.radius, 'bounds include the instanced blades for correct frustum culling')
+      assert.ok(transforms.getZ(i) > 0)
+    }
+    batch.geometry.dispose()
+  }
   const repeat = createGrassLayout()
   assert.deepEqual(patches[0].matrices, repeat[0].matrices)
 })

@@ -1,46 +1,43 @@
-import { memo, useEffect, useMemo } from 'react'
-import { InstancedBufferAttribute, Sphere, Vector3 } from 'three'
+import { useEffect, useMemo } from 'react'
+import { DoubleSide, MeshLambertMaterial } from 'three'
 import type { GrassPatchData } from './grassLayout'
-import { createGrassGeometry } from './grassGeometry'
-import { createGrassMaterial } from './grassMaterial'
 import type { GrassUniforms } from './grassMaterial'
+import { createDistantBatches } from './distantGeometry'
 
-function createDistantResources(uniforms: GrassUniforms) {
-  const geometry = createGrassGeometry(1), material = createGrassMaterial(uniforms)
-  // Keep the palette and lighting of the original grass, with cheaper distant motion.
-  const compile = material.onBeforeCompile
-  material.onBeforeCompile = (shader, renderer) => {
-    compile.call(material, shader, renderer)
-    shader.vertexShader = shader.vertexShader
-      .replace(/float presence = [^;]+;/, 'float presence = smoothstep(16., 28., distanceToCamera);')
-      .replace(/float width = [^;]+;/, 'float width = 3.8;')
-      .replace(/float swayTime =[\s\S]*?transformed.y \*= 1\. - flatten \* \.65;/, `
-        transformed.x += sin(dot(root.xz, vec2(.62,.43)) - uGrassTime * uSwaySpeed * 4.4) * .055 * uWind * position.y;
-      `)
+function createDistantMaterial(uniforms: GrassUniforms) {
+  const material = new MeshLambertMaterial({ side: DoubleSide })
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, { uHeight: uniforms.height, uTime: uniforms.time, uWind: uniforms.wind, uSpeed: uniforms.swaySpeed })
+    shader.vertexShader = `attribute vec3 meadowRoot, meadowColor; attribute vec4 meadowTransform;
+      uniform float uHeight, uTime, uWind, uSpeed; varying float vMeadowHeight; varying vec3 vMeadowColor;\n` + shader.vertexShader
+    shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nobjectNormal = normalize(vec3(.12,1.,.08));')
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      vMeadowHeight = position.y; vMeadowColor = meadowColor;
+      vec3 root = (modelMatrix * vec4(meadowRoot,1.)).xyz;
+      float blend = smoothstep(16.,28.,length(root.xz-cameraPosition.xz));
+      float bend = .28 * position.y * position.y;
+      float x = bend + (position.x-bend)*3.8;
+      x += sin(dot(root.xz,vec2(.62,.43))-uTime*uSpeed*4.4)*.055*uWind*position.y;
+      vec2 heading = meadowTransform.xy;
+      float scale = max(.001,length(heading));
+      vec2 side = vec2(heading.y,heading.x)/scale;
+      transformed = meadowRoot + vec3(heading.x*x + side.x*position.z*meadowTransform.w,
+        position.y*uHeight*meadowTransform.z, -heading.y*x + side.y*position.z*meadowTransform.w)*blend;
+    `)
+    shader.fragmentShader = 'varying float vMeadowHeight; varying vec3 vMeadowColor;\n' + shader.fragmentShader
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
+      diffuseColor.rgb *= vMeadowColor * mix(vec3(.25,.48,.37),vec3(.90,1.,.87),smoothstep(0.,1.,vMeadowHeight));
+    `).replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize(vNormal);')
   }
-  material.customProgramCacheKey = () => 'distant-mesh-meadow-v1'
-  return { geometry, material }
+  return material
 }
 
-const DistantPatch = memo(function DistantPatch({ patch, resources }: {
-  patch: GrassPatchData; resources: ReturnType<typeof createDistantResources>
-}) {
-  const data = useMemo(() => {
-    const count = Math.ceil(patch.count / 4), matrices = new Float32Array(count * 16), colors = new Float32Array(count * 3)
-    for (let i = 0; i < count; i++) {
-      matrices.set(patch.matrices.subarray(i * 64, i * 64 + 16), i * 16)
-      colors.set(patch.colors.subarray(i * 12, i * 12 + 3), i * 3)
-    }
-    return { count, matrices: new InstancedBufferAttribute(matrices,16), colors: new InstancedBufferAttribute(colors,3), bounds: new Sphere(new Vector3(0,.8,0),7.5) }
-  }, [patch])
-  return <instancedMesh args={[resources.geometry, resources.material, data.count]} position={[patch.x,0,patch.z]}
-    instanceMatrix={data.matrices} instanceColor={data.colors} boundingSphere={data.bounds} dispose={null} />
-})
-
-// Fixed world-oriented mesh blades, without billboards, transparency or texture cards.
 export function DistantGrass({ patches, uniforms, color }: { patches: GrassPatchData[]; uniforms: GrassUniforms; color: string }) {
-  const resources = useMemo(() => createDistantResources(uniforms), [uniforms])
-  useEffect(() => { resources.material.color.set(color) }, [resources, color])
-  useEffect(() => () => { resources.geometry.dispose(); resources.material.dispose() }, [resources])
-  return <group>{patches.map(patch => <DistantPatch key={patch.id} patch={patch} resources={resources} />)}</group>
+  const batches = useMemo(() => createDistantBatches(patches), [patches])
+  const material = useMemo(() => createDistantMaterial(uniforms), [uniforms])
+  useEffect(() => { material.color.set(color) }, [material,color])
+  useEffect(() => () => { batches.forEach(batch => batch.geometry.dispose()); material.dispose() }, [batches,material])
+  return <group>{batches.map(batch => <mesh key={batch.id} position={[batch.x,0,batch.z]} geometry={batch.geometry} material={material} />)}</group>
 }

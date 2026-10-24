@@ -1,4 +1,5 @@
 import type { RefObject } from 'react'
+import { useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { PCFShadowMap } from 'three'
 import type { GameSettings, RuntimeStats } from '../settings/gameSettings'
@@ -15,10 +16,11 @@ export function GameCanvas({ reset, input, settings, onReset, paused, stats, mul
   music: MusicAudio
   dice: DiceController
 }) {
-  return <Canvas shadows={{ type: PCFShadowMap }} dpr={settings.renderScale}
+  const [renderDpr, setRenderDpr] = useState(() => settings.adaptiveQuality ? Math.min(.8, settings.renderScale) : settings.renderScale)
+  return <Canvas shadows={{ type: PCFShadowMap }} dpr={renderDpr}
     camera={{ position: [0, 11, 24], fov: 50, near: .1, far: 180 }} gl={{ antialias: true, alpha: true }}
     aria-label="Explore a grassy floating island with a board at its center">
     <GameScene reset={reset} input={input} settings={settings} onReset={onReset} paused={paused} multiplayer={multiplayer} music={music} dice={dice} />
-    <PerformanceMonitor settings={settings} stats={stats} />
+    <PerformanceMonitor settings={settings} stats={stats} onDprChange={setRenderDpr} />
   </Canvas>
 }

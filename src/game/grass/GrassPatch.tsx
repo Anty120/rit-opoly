@@ -28,6 +28,9 @@ export const GrassPatch = memo(function GrassPatch({ patch, geometry, material, 
     if (elapsed.current < .12) return
     elapsed.current = 0
     const distance = grassDistanceToPatch(camera.position.x, camera.position.z, patch.x, patch.z)
+    // Preserve nearby shadows; distant blades use the same diffuse lighting
+    // without paying for PCF shadow filtering on every fragment.
+    mesh.current.receiveShadow = shadows && distance < 18
     // Include a guard band for blades fading in at the edge of the draw prefix.
     mesh.current.visible = distance < 36
     mesh.current.count = distance >= 36 ? 0 : Math.min(patch.count, grassDrawCount(patch.count, distance, density) + Math.ceil(patch.count * .02))
